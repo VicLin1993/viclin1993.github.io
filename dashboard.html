@@ -33,7 +33,7 @@
         .section-title { font-size: 18px; color: #00ff88; display: flex; align-items: center; gap: 10px; }
 
         .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 12px; }
-        .search-box { background: rgba(0,0,0,0.4); border: 1px solid rgba(0, 240, 255, 0.4); color: #00ff88; padding: 8px 12px; border-radius: 4px; outline: none; width: 260px; font-size: 13px; }
+        .search-box { background: rgba(0,0,0,0.4); border: 1px solid rgba(0, 240, 255, 0.4); color: #00ff88; padding: 8px 12px; border-radius: 4px; outline: none; width: 300px; font-size: 13px; }
         .search-box:focus { border-color: #00ff88; }
 
         /* Namespace 卡片網格（10 列） */
@@ -59,7 +59,7 @@
         .btn-back { background: transparent; border: 1px solid #58a6ff; color: #58a6ff; padding: 4px 12px; font-size: 12px; border-radius: 3px; cursor: pointer; }
         .btn-back:hover { background: rgba(88, 166, 255, 0.2); }
 
-        /* 彈出編輯視窗Modal */
+        /* 彈出編輯視窗 Modal */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.75); display: none; justify-content: center; align-items: center; z-index: 1000; }
         .modal-overlay.active { display: flex; }
         .modal-content { background: #0d1117; border: 1px solid #00f0ff; border-radius: 6px; width: 80%; max-width: 900px; height: 80vh; display: flex; flex-direction: column; padding: 24px; box-shadow: 0 0 25px rgba(0, 240, 255, 0.3); }
@@ -76,8 +76,6 @@
         .page-btn:hover:not(:disabled) { border-color: #00ff88; color: #00ff88; background: rgba(0, 255, 136, 0.1); }
         .page-btn.active { background: #00ff88; color: #0d1117; border-color: #00ff88; font-weight: bold; }
         .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-        .page-ellipsis { color: #8b949e; padding: 0 4px; font-size: 12px; }
-        .page-jump-input { width: 45px; background: rgba(0,0,0,0.5); border: 1px solid rgba(0, 240, 255, 0.3); color: #00ff88; text-align: center; padding: 3px 0; border-radius: 3px; font-size: 12px; outline: none; }
 
         .status-msg { font-size: 13px; color: #ff5555; background: rgba(255,85,85,0.1); border: 1px solid rgba(255,85,85,0.3); padding: 10px; border-radius: 4px; margin-bottom: 12px; display: none; }
         .placeholder-box { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #8b949e; font-size: 15px; border: 1px dashed rgba(0, 240, 255, 0.2); border-radius: 6px; }
@@ -120,7 +118,7 @@
 
             <div class="toolbar">
                 <div style="font-size:13px; color:#58a6ff;">全量 Namespace 列表（共 <span id="nsTotalCount">0</span> 個）</div>
-                <input type="text" id="searchInput" class="search-box" placeholder="搜尋命名空間..." oninput="onSearchInput()">
+                <input type="text" id="searchInput" class="search-box" placeholder="搜尋命名空間名稱 / ID..." oninput="onSearchInput()">
             </div>
 
             <div id="statusMsg" class="status-msg"></div>
@@ -143,6 +141,12 @@
                     <span>命名空間配置：<span id="currentNsTitle" style="color: #00f0ff;"></span></span>
                 </div>
                 <button class="page-btn" onclick="loadConfigsOfNamespace(activeNamespaceId)">刷新列表</button>
+            </div>
+
+            <!-- 配置搜尋列（支援模糊搜尋 Data Id / Group / 歸屬應用） -->
+            <div class="toolbar">
+                <div style="font-size:13px; color:#58a6ff;">符合條件配置（共 <span id="configFilteredCount">0</span> 項）</div>
+                <input type="text" id="configSearchInput" class="search-box" placeholder="搜尋 Group / Data Id / 應用..." oninput="onConfigSearchInput()">
             </div>
 
             <div id="configStatusMsg" class="status-msg"></div>
@@ -206,6 +210,10 @@
     let filteredNamespaceList = []; 
     let currentPage = 1;            
     let activeNamespaceId = '';     
+
+    // 儲存目前 Namespace 下的所有原生配置項目與篩選後的項目
+    let rawConfigList = [];
+    let filteredConfigList = [];
 
     // 當前正在編輯的標的資訊
     let currentEditDataId = '';
@@ -307,7 +315,6 @@
                     ${configCount ? `<div class="ns-badge">${configCount}</div>` : ''}
                 `;
 
-                // 點擊卡片跳轉進入詳細配置列表
                 card.onclick = () => {
                     loadConfigsOfNamespace(item.namespace, nsName);
                 };
@@ -326,8 +333,8 @@
     async function loadConfigsOfNamespace(namespaceId, namespaceName) {
         activeNamespaceId = namespaceId;
         document.getElementById('currentNsTitle').innerText = namespaceName || namespaceId || 'public';
+        document.getElementById('configSearchInput').value = ''; // 清空搜尋框
         
-        // 隱藏概覽，顯示配置列表
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         document.getElementById('view-configs').classList.add('active');
 
@@ -339,30 +346,14 @@
         const token = localStorage.getItem('nacos_access_token') || '';
 
         try {
-            const url = `${SERVER_URL}/nacos/v1/cs/configs?dataId=&group=&appName=&config_tags=&pageNo=1&pageSize=200&tenant=${namespaceId}&search=accurate&accessToken=${token}`;
+            const url = `${SERVER_URL}/nacos/v1/cs/configs?dataId=&group=&appName=&config_tags=&pageNo=1&pageSize=500&tenant=${namespaceId}&search=accurate&accessToken=${token}`;
             const response = await fetch(url);
             const resData = await response.json();
 
-            const configList = resData.pageItems || [];
-            tableBody.innerHTML = '';
+            rawConfigList = resData.pageItems || [];
+            filteredConfigList = [...rawConfigList];
 
-            if (configList.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#8b949e;">該命名空間下暫無配置項目</td></tr>';
-                return;
-            }
-
-            configList.forEach(config => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="color:#00ff88; font-weight:bold;">${config.dataId}</td>
-                    <td>${config.group}</td>
-                    <td style="color:#8b949e;">${config.appName || '-'}</td>
-                    <td>
-                        <button class="btn-edit" onclick="openEditModal('${config.dataId}', '${config.group}')">編輯</button>
-                    </td>
-                `;
-                tableBody.appendChild(tr);
-            });
+            renderConfigTable(filteredConfigList);
 
         } catch (err) {
             tableBody.innerHTML = '';
@@ -371,7 +362,49 @@
         }
     }
 
-    // 開啟編輯視窗並拉取原始配置內文
+    // 渲染配置表格
+    function renderConfigTable(list) {
+        const tableBody = document.getElementById('configTableBody');
+        tableBody.innerHTML = '';
+
+        document.getElementById('configFilteredCount').innerText = list.length;
+
+        if (!list || list.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#8b949e; padding:30px;">無符合條件的配置數據</td></tr>';
+            return;
+        }
+
+        list.forEach(config => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="color:#00ff88; font-weight:bold;">${config.dataId}</td>
+                <td><span style="background:rgba(0,240,255,0.1); padding:2px 8px; border-radius:3px; color:#00f0ff;">${config.group}</span></td>
+                <td style="color:#8b949e;">${config.appName || '-'}</td>
+                <td>
+                    <button class="btn-edit" onclick="openEditModal('${config.dataId}', '${config.group}')">編輯</button>
+                </td>
+            `;
+            tableBody.appendChild(tr);
+        });
+    }
+
+    // 配置列表模糊/精準搜尋過濾（支援 Data Id、Group、歸屬應用）
+    function onConfigSearchInput() {
+        const query = document.getElementById('configSearchInput').value.trim().toLowerCase();
+        
+        if (!query) {
+            filteredConfigList = [...rawConfigList];
+        } else {
+            filteredConfigList = rawConfigList.filter(item => {
+                const dataId = (item.dataId || '').toLowerCase();
+                const group = (item.group || '').toLowerCase();
+                const appName = (item.appName || '').toLowerCase();
+                return group.includes(query) || dataId.includes(query) || appName.includes(query);
+            });
+        }
+        renderConfigTable(filteredConfigList);
+    }
+
     async function openEditModal(dataId, group) {
         currentEditDataId = dataId;
         currentEditGroup = group;
@@ -394,7 +427,6 @@
         }
     }
 
-    // 將編輯後的內容實時發布同步回 Nacos
     async function saveConfigToServer() {
         const content = document.getElementById('configContentArea').value;
         const token = localStorage.getItem('nacos_access_token') || '';

@@ -131,6 +131,93 @@ window.handleCompareClick = function(dataId, group, namespaceId) {
     }
 };
 </script>
+
+<script>
+// 补全 fetchHistoryAndCompare 函数，确保点击对比能正确加载历史记录并带入参数
+window.fetchHistoryAndCompare = function(dataId, group, namespaceId) {
+    if (window.appendDebugLog) {
+        window.appendDebugLog(`[对比触发] Namespace=${namespaceId}, Group=${group}, DataID=${dataId}`, 'info');
+    }
+
+    // 自动填充对比/查询面板的输入框
+    const nsSelect = document.getElementById('search-namespace') || document.querySelector('[name="namespace"]');
+    const groupInput = document.getElementById('search-group') || document.querySelector('[name="group"]');
+    const dataIdInput = document.getElementById('search-dataid') || document.querySelector('[name="dataId"]');
+
+    if (nsSelect) nsSelect.value = namespaceId || '';
+    if (groupInput) groupInput.value = group || '';
+    if (dataIdInput) dataIdInput.value = dataId || '';
+
+    // 自动切换到查询/对比 Tab 页
+    const compareTab = document.querySelector('[data-tab="history"]') || document.querySelector('[data-tab="compare"]') || document.querySelector('#tab-query');
+    if (compareTab) {
+        compareTab.click();
+    }
+
+    // 执行历史版本查询
+    if (typeof window.doQueryHistory === 'function') {
+        window.doQueryHistory(dataId, group, namespaceId);
+    } else if (typeof window.doSearch === 'function') {
+        window.doSearch();
+    } else {
+        if (window.appendDebugLog) {
+            window.appendDebugLog('[对比通知] 已带入参数并切换 Tab，准备查询历史版本...', 'info');
+        }
+    }
+};
+
+// 2. 页面加载完毕后，将 Namespace 改为下拉选单，默认显示“请选择”
+document.addEventListener('DOMContentLoaded', function() {
+    const nsContainer = document.getElementById('search-namespace-container') || document.getElementById('search-namespace');
+    if (nsContainer) {
+        // 如果原本是 text input，替换成 select
+        if (nsContainer.tagName === 'INPUT') {
+            const select = document.createElement('select');
+            select.id = nsContainer.id;
+            select.className = nsContainer.className;
+            select.name = nsContainer.name;
+            nsContainer.parentNode.replaceChild(select, nsContainer);
+            
+            // 填充下拉选项
+            window.populateNamespaceSelect(select);
+        } else if (nsContainer.tagName === 'SELECT') {
+            window.populateNamespaceSelect(nsContainer);
+        }
+    }
+});
+
+// 填充 Namespace 下拉选项
+window.populateNamespaceSelect = function(selectElem) {
+    if (!selectElem) return;
+    
+    // 清空现有选项
+    selectElem.innerHTML = '';
+
+    // 1. 默认选项：“请选择”
+    const defaultOpt = document.createElement('option');
+    defaultOpt.value = '';
+    defaultOpt.innerText = '请选择';
+    defaultOpt.selected = true;
+    selectElem.appendChild(defaultOpt);
+
+    // 2. 从已有的 namespace 列表中填充选项
+    const namespaces = window.namespaceList || [
+        { id: 'public', name: 'public (保留项)' },
+        { id: 'dev', name: 'DEV 开发环境' },
+        { id: 'sit', name: 'SIT 测试环境' },
+        { id: 'uat', name: 'UAT 预发布环境' },
+        { id: 'prod', name: 'PROD 生产环境' }
+    ];
+
+    namespaces.forEach(ns => {
+        const opt = document.createElement('option');
+        opt.value = typeof ns === 'object' ? (ns.id || ns.namespaceId) : ns;
+        opt.innerText = typeof ns === 'object' ? (ns.name || ns.namespaceShowName || ns.id) : ns;
+        selectElem.appendChild(opt);
+    });
+};
+</script>
+
 </head>
 <body>
 

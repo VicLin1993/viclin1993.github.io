@@ -459,7 +459,7 @@
         renderConfigTable(filteredConfigList);
     }
 
-    // 🔥 点击“对比”：跳转至“2. 查询”分页并展示版本 Side-by-Side 差异
+    // 点击“对比”：跳转至“2. 查询”分页并展示版本 Side-by-Side 差异
     async function compareToQueryTab(dataId, group) {
         switchTab('search');
         document.getElementById('compareTargetText').innerText = `${dataId} (${group})`;
@@ -480,17 +480,15 @@
 
             // 2. 查询 Nacos 历史版本列表
             const historyUrl = `${SERVER_URL}/nacos/v1/cs/history?search=accurate&dataId=${encodeURIComponent(dataId)}&group=${encodeURIComponent(group)}&tenant=${encodeURIComponent(activeNamespaceId)}&pageNo=1&pageSize=5&accessToken=${token}`;
-            const historyRes = await historyResFetch = await fetch(historyUrl);
-            const historyData = await historyResFetch.json();
+            const historyRes = await fetch(historyUrl);
+            const historyData = await historyRes.json();
 
             const pageItems = historyData.pageItems || [];
 
             if (pageItems.length <= 1) {
-                // 如果没有历史记录（只有初始版本）
                 renderDiffViews(currentContent, currentContent);
                 document.getElementById('leftPaneTitle').innerText = `← 上一版本 (无历史纪录，与当前一致)`;
             } else {
-                // 获取上一版本的 nid 详细内容
                 const prevNid = pageItems[1].nid;
                 const prevDetailUrl = `${SERVER_URL}/nacos/v1/cs/history?dataId=${encodeURIComponent(dataId)}&group=${encodeURIComponent(group)}&tenant=${encodeURIComponent(activeNamespaceId)}&nid=${prevNid}&accessToken=${token}`;
                 const prevRes = await fetch(prevDetailUrl);
@@ -507,7 +505,6 @@
         }
     }
 
-    // 渲染左右对比视图的行内差异
     function renderDiffViews(oldText, newText) {
         const oldLines = oldText.split('\n');
         const newLines = newText.split('\n');

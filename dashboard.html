@@ -96,22 +96,52 @@
             </table>
         </section>
 
-        <!-- 视窗 2：版本对比 -->
+        <!-- 视窗 2：独立多版本自由对比 -->
         <section id="view-search" class="view-section">
             <div class="section-header">
-                <div class="section-title">
-                    <span>> 配置版本变更对比 // <span id="compareTargetText" style="color:#00f0ff;">请从概览选择配置发起对比</span></span>
+                <div class="section-title">> 配置版本多重对比中心</div>
+            </div>
+
+            <!-- 顶部固定多维筛选与版本选择控制栏 -->
+            <div class="filter-panel" style="gap:12px;">
+                <div class="filter-item">
+                    <label for="compareNsSelect">命名空间:</label>
+                    <select id="compareNsSelect" class="filter-input" style="width:160px; cursor:pointer;" onchange="onCompareNsChange()"></select>
+                </div>
+                <div class="filter-item">
+                    <label for="compareDataId">Data ID / YAML:</label>
+                    <input type="text" id="compareDataId" class="filter-input" placeholder="如 im-admin.yaml" style="width:180px;">
+                </div>
+                <div class="filter-item">
+                    <label for="compareGroup">Group:</label>
+                    <input type="text" id="compareGroup" class="filter-input" placeholder="如 SIT" style="width:120px;">
+                </div>
+                <button class="btn-search" onclick="fetchHistoryAndCompare()">查询历史</button>
+
+                <div style="width:100%; height:1px; background:rgba(0,240,255,0.15); margin:4px 0;"></div>
+
+                <!-- 版本自由下拉切换 -->
+                <div class="filter-item">
+                    <label for="compareLeftVersion" style="color:#ff5555;">← 左侧对比版:</label>
+                    <select id="compareLeftVersion" class="filter-input" style="width:230px; border-color:#ff5555; cursor:pointer;" onchange="triggerDiffRender()"></select>
+                </div>
+                <div class="filter-item">
+                    <label for="compareRightVersion" style="color:#00ff88;">→ 右侧基准版:</label>
+                    <select id="compareRightVersion" class="filter-input" style="width:230px; border-color:#00ff88; cursor:pointer;" onchange="triggerDiffRender()"></select>
                 </div>
             </div>
 
+            <div id="compareStatusMsg" class="status-msg"></div>
+
+            <!-- 左右分屏对比区域 -->
             <div id="diffContainer" class="diff-container">
                 <div class="diff-pane diff-pane-left">
-                    <div class="diff-pane-header" id="leftPaneTitle">← 上一版本 (Older Version)</div>
-                    <div class="diff-body" id="leftDiffBody">等待选择对比目标...</div>
+                    <div class="diff-pane-header" id="leftPaneTitle">← 历史对比版本</div>
+                    <div class="diff-body" id="leftDiffBody">请在上方选择命名空间并输入 Data ID / Group 查询版本...</div>
                 </div>
                 <div class="diff-pane diff-pane-right">
-                    <div class="diff-pane-header" id="rightPaneTitle">→ 当前最新版本 (Current Version)</div>
-                    <div class="diff-body" id="rightDiffBody">等待选择对比目标...</div>
+                    <div class="diff-pane-header" id="rightPaneTitle">→ 最新/基准版本</div>
+                    <div class="diff-body" id="rightDiffBody">请在上方选择命名空间并输入 Data ID / Group 查询版本...</div>
                 </div>
             </div>
         </section>

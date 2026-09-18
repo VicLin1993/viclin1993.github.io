@@ -173,7 +173,7 @@
         <div class="brand">秘密调整基地</div>
         <div class="nav-item active" data-tab="overview">概览</div>
         <div class="nav-item" data-tab="query">查询</div>
-        <div class="nav-item" data-tab="configs">修改</div>
+        <div class="nav-item" data-tab="batch">修改</div>
         <div class="sidebar-footer">
             <div class="server" id="currentServer">-</div>
             <button onclick="logout()">退出接入</button>
@@ -254,6 +254,42 @@
             </table>
         </section>
 
+        <section id="view-batch" class="view-section">
+            <h2>配置搜索 / 批量替换</h2>
+            <div class="toolbar">
+                <input id="batchNs" placeholder="Namespace（留空=全部）" list="compareNsList" style="min-width:170px;">
+                <input id="batchGroup" placeholder="Group（模糊）" list="compareGroupList">
+                <input id="batchDataId" placeholder="Data ID（模糊）" list="compareDataIdList">
+            </div>
+            <div class="toolbar">
+                <input id="batchKeyword" placeholder="查找内容（匹配配置正文）" style="min-width:260px;">
+                <span style="color:#8b949e;">→</span>
+                <input id="batchReplaceWith" placeholder="替换为" style="min-width:260px;">
+                <button onclick="batchSearch()">搜 索</button>
+                <button onclick="batchReplaceSelected()" style="background:#8b2d2d;border-color:#f85149;color:#fff;">批量替换</button>
+                <button onclick="batchReset()">重 置</button>
+            </div>
+            <div id="batchStatusMsg" class="status-msg"></div>
+            <div class="toolbar" style="margin-bottom:8px;">
+                <label style="color:#8b949e;font-size:13px;display:flex;align-items:center;gap:6px;">
+                    <input type="checkbox" id="batchCheckAll" onchange="batchToggleAll(this.checked)"> 全选
+                </label>
+                <span class="count">共 <b id="batchTotalCount" style="color:#00ff88;">0</b> 条 · 已选 <b id="batchCheckedCount" style="color:#f85149;">0</b> 条</span>
+            </div>
+            <table class="config-table">
+                <thead>
+                    <tr>
+                        <th style="width:40px;"></th>
+                        <th style="width:150px;">Namespace</th>
+                        <th>Data ID</th>
+                        <th>Group</th>
+                        <th style="width:90px;">匹配次数</th>
+                    </tr>
+                </thead>
+                <tbody id="batchTableBody"></tbody>
+            </table>
+        </section>
+
         <section id="view-compare" class="view-section">
     <h2>对比版本 · <span id="cvContext" style="color:#00ff88;">-</span></h2>
     <div class="compare-panels">
@@ -308,6 +344,7 @@
 <script src="js/configs.js"></script>
 <script src="js/edit.js"></script>
 <script src="js/compare.js"></script>
+<script src="js/batch.js"></script>
 <script src="js/dashboard-init.js"></script>
 </body>
 </html>

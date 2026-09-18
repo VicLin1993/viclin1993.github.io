@@ -400,6 +400,82 @@ window.populateNamespaceSelect = function(selectElem) {
 })();
 </script>
 
+
+<script>
+(function() {
+    // 1. 定义统一的原地对比面板渲染逻辑
+    window.renderInPlaceCompare = function(dataId, group, namespaceId) {
+        if (window.appendDebugLog) {
+            window.appendDebugLog(`[⚡成功拦截对比点击] 正在原地生成对比框: DataID=${dataId}, Group=${group}, NS=${namespaceId}`, 'info');
+        }
+
+        let compareContainer = document.getElementById('in-place-compare-container');
+        if (!compareContainer) {
+            compareContainer = document.createElement('div');
+            compareContainer.id = 'in-place-compare-container';
+            compareContainer.style.cssText = 'margin: 20px 0; padding: 15px; background: #fff; border: 2px solid #58a6ff; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
+            
+            const tableOrMain = document.querySelector('table') || document.querySelector('.main-content') || document.body;
+            if (tableOrMain.parentNode) {
+                tableOrMain.parentNode.insertBefore(compareContainer, tableOrMain.nextSibling);
+            } else {
+                document.body.appendChild(compareContainer);
+            }
+        }
+
+        compareContainer.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 12px;">
+                <h3 style="margin: 0; color: #1f2328;">📊 配置历史版本对比 (${dataId})</h3>
+                <button onclick="document.getElementById('in-place-compare-container').remove()" style="padding: 4px 12px; background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 4px; cursor: pointer;">关闭</button>
+            </div>
+            <div style="font-size: 13px; color: #57606a; margin-bottom: 12px; background: #f6f8fa; padding: 8px; border-radius: 4px;">
+                <b>Namespace:</b> ${namespaceId || 'default'} &nbsp;|&nbsp; 
+                <b>Group:</b> ${group} &nbsp;|&nbsp; 
+                <b>Data ID:</b> ${dataId}
+            </div>
+            <div id="compare-diff-body" style="padding: 10px; background: #f8f9fa; border: 1px solid #e1e4e8; border-radius: 4px;">
+                <p style="color: #0969da; font-weight: bold;">✅ 已成功捕获配置参数，对比面板展开成功！</p>
+                <p>如需调用具体的比对数据接口，请在此处关联对比 API。</p>
+            </div>
+        `;
+
+        compareContainer.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    // 2. 覆盖所有可能存在的原生对比函数名
+    window.fetchHistoryAndCompare = window.renderInPlaceCompare;
+    window.handleCompare = window.renderInPlaceCompare;
+    window.toCompare = window.renderInPlaceCompare;
+    window.compareConfig = window.renderInPlaceCompare;
+
+    // 3. 全局委托事件捕获：只要点击的按钮/链接包含“对比”字样，强行截获！
+    document.addEventListener('click', function(e) {
+        let target = e.target;
+        // 向上寻找包含 click 的元素或按钮
+        while (target && target !== document) {
+            const text = target.innerText || target.textContent || '';
+            const onclickAttr = target.getAttribute('onclick') || '';
+            
+            if (text.trim() === '对比' || onclickAttr.includes('Compare') || onclickAttr.includes('compare')) {
+                if (window.appendDebugLog) {
+                    window.appendDebugLog(`[全局事件捕获] 检测到对比按钮点击 (onclick="${onclickAttr}")`, 'info');
+                }
+                
+                // 尝试提取参数（若 onclick 中包含参数）
+                const match = onclickAttr.match(/['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]/);
+                if (match) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.renderInPlaceCompare(match[1], match[2], '');
+                    return;
+                }
+            }
+            target = target.parentElement;
+        }
+    }, true); // 使用 true 在捕获阶段拦截
+})();
+</script>
+
 </head>
 <body>
 

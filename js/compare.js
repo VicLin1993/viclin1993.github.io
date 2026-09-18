@@ -2,7 +2,7 @@
  * ========================================================
  * 模块：js/compare.js
  * 职责：处理配置文件的 Side-by-Side 独立对比弹窗 (Modal)
- * 特性：防 JSON 解析崩溃、自动兼容纯文本/JSON 响应、自由版本对比
+ * 特性：严格校验 NID 与 Tenant 参数，防止 undefined 导致 Nacos 后端报错
  * ========================================================
  */
 
@@ -14,11 +14,17 @@ let currentCompareTenant = '';
 
 // 打开独立对比 Modal 弹窗
 async function compareToQueryTab(dataId, group) {
-    currentCompareDataId = dataId;
-    currentCompareGroup = group;
-    currentCompareTenant = (activeNamespaceId === 'public' || !activeNamespaceId) ? '' : activeNamespaceId;
+    currentCompareDataId = dataId || '';
+    currentCompareGroup = group || 'DEFAULT_GROUP';
+    
+    // 规范化 Tenant：如果是 public 或无值，则留空字符串
+    if (!activeNamespaceId || activeNamespaceId === 'public' || activeNamespaceId === 'undefined') {
+        currentCompareTenant = '';
+    } else {
+        currentCompareTenant = activeNamespaceId;
+    }
 
-    document.getElementById('compareModalTitle').innerText = `${dataId} (${group})`;
+    document.getElementById('compareModalTitle').innerText = `${currentCompareDataId} (${currentCompareGroup})`;
     document.getElementById('compareModal').classList.add('active');
 
     const statusMsg = document.getElementById('compareStatusMsg');
@@ -49,7 +55,7 @@ async function fetchHistoryAndCompare() {
         try { 
             historyData = JSON.parse(historyText); 
         } catch (e) {
-            console.warn('历史版本列表非标准 JSON, 尝试降级处理:', historyText);
+            console.warn('历史列表解析非 JSON:', historyText);
         }
 
         historyListCache = historyData.pageItems || [];
@@ -96,24 +102,26 @@ function populateVersionSelects() {
         leftSelect.appendChild(noHistOpt);
     } else {
         historyListCache.forEach((item, index) => {
+            if (!item || item.nid === undefined || item.nid === null) return; // 过滤无 nid 的无效项
+
             const timeStr = item.lastModifiedTime || '未知时间';
             const optText = `[版本 #${index + 1}] 修改时间: ${timeStr} (${item.opType || 'UPDATE'})`;
 
             const optLeft = document.createElement('option');
-            optLeft.value = item.nid;
+            optLeft.value = String(item.nid);
             optLeft.innerText = optText;
             leftSelect.appendChild(optLeft);
 
             const optRight = document.createElement('option');
-            optRight.value = item.nid;
+            optRight.value = String(item.nid);
             optRight.innerText = optText;
             rightSelect.appendChild(optRight);
         });
     }
 
     rightSelect.value = 'current';
-    if (historyListCache.length > 0) {
-        leftSelect.value = historyListCache[0].nid;
+    if (historyListCache.length > 0 && historyListCache[0].nid !== undefined) {
+        leftSelect.value = String(historyListCache[0].nid);
     } else {
         leftSelect.value = 'current';
     }
@@ -123,8 +131,13 @@ function populateVersionSelects() {
 
 // 根据选中的左右版本进行数据拉取并对比渲染
 async function triggerDiffRender() {
-    const leftNid = document.getElementById('compareLeftVersion').value;
-    const rightNid = document.getElementById('compareRightVersion').value;
+    const leftSelect = document.getElementById('compareLeftVersion');
+    const rightSelect = document.getElementById('compareRightVersion');
+
+    if (!leftSelect || !rightSelect) return;
+
+    const leftNid = leftSelect.value;
+    const rightNid = rightSelect.value;
     const token = localStorage.getItem('nacos_access_token') || '';
 
     const leftContent = await fetchContentByNid(leftNid, token);
@@ -136,10 +149,10 @@ async function triggerDiffRender() {
     renderDiffViews(leftContent.text, rightContent.text);
 }
 
-// 安全拉取 NID 文本（修复 caused: Failed to... 造成的 JSON 异常）
+// 严格校验 NID 并安全拉取文本，防止 "undefined" 传入 API
 async function fetchContentByNid(nid, token) {
-    if (nid === 'current') {
-        return historyDetailMap['current'];
+    if (!nid || nid === 'current' || nid === 'undefined') {
+        return historyDetailMap['current'] || { text: '', time: '当前最新状态' };
     }
 
     if (historyDetailMap[nid]) {
@@ -147,16 +160,16 @@ async function fetchContentByNid(nid, token) {
     }
 
     const item = historyListCache.find(i => String(i.nid) === String(nid));
-    const timeInfo = item ? `修改时间: ${item.lastModifiedTime}` : `NID: ${nid}`;
+    const timeInfo = item ? `修改时间: ${item.lastModifiedTime}` : `版本 NID: ${nid}`;
 
     try {
-        const detailUrl = `${SERVER_URL}/nacos/v1/cs/history?dataId=${encodeURIComponent(currentCompareDataId)}&group=${encodeURIComponent(currentCompareGroup)}&tenant=${encodeURIComponent(currentCompareTenant)}&nid=${nid}&accessToken=${token}`;
+        const detailUrl = `${SERVER_URL}/nacos/v1/cs/history?dataId=${encodeURIComponent(currentCompareDataId)}&group=${encodeURIComponent(currentCompareGroup)}&tenant=${encodeURIComponent(currentCompareTenant)}&nid=${encodeURIComponent(nid)}&accessToken=${token}`;
         const res = await fetch(detailUrl);
         const text = await res.text();
 
         let content = text;
         
-        // 安全 JSON 解析防御
+        // 如果服务器返回了标准的历史 JSON 包，提取里面的 content 字段
         if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
             try {
                 const json = JSON.parse(text);
@@ -166,9 +179,9 @@ async function fetchContentByNid(nid, token) {
             }
         }
 
-        // 如果 Nacos 抛出异常文本（以 caused: 开头）
-        if (content.includes('caused:')) {
-            content = `[!] 读取历史版本明细受限或记录已清除\n服务端响应信息:\n${content}`;
+        // 防御性拦截 Nacos 返回的错误日志
+        if (content.includes('caused:') || content.includes('NumberFormatException')) {
+            content = `[!] 该历史记录版本内容获取失败 (服务端响应格式错误)`;
         }
 
         historyDetailMap[nid] = { text: content, time: timeInfo };

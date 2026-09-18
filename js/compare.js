@@ -2,7 +2,7 @@
  * ========================================================
  * 模块：js/compare.js
  * 职责：独立多版本自由对比 (版本 1 vs 版本 2/3/4/5...)，
- *       包含 Namespace 下拉选择、模糊/精确定位、变动时间标注
+ *       包含 Namespace 下拉选择、自动带入参数联动、变动时间标注
  * ========================================================
  */
 
@@ -26,28 +26,40 @@ function initCompareNsDropdown() {
     });
 }
 
-// 供 configs.js 操作栏的“对比”按钮直接联动跳转
+// 切换 Namespace 下拉选单时的响应
+function onCompareNsChange() {
+    activeNamespaceId = document.getElementById('compareNsSelect').value;
+}
+
+// 🔥 核心联动：按下“对比”按钮后，自动跳转并自动填入参数触发查询
 async function compareToQueryTab(dataId, group) {
+    // 1. 自动跳转到第二个“查询 (版本对比)”分页
     switchTab('search');
     
-    // 初始化下拉选单
+    // 2. 初始化并更新 Namespace 下拉选单
     initCompareNsDropdown();
     
-    document.getElementById('compareNsSelect').value = activeNamespaceId || '';
+    // 3. 自动将对应配置文件的 Namespace、Data ID 和 Group 调整至筛选栏中
+    const nsSelect = document.getElementById('compareNsSelect');
+    if (nsSelect) {
+        nsSelect.value = activeNamespaceId || '';
+    }
+    
     document.getElementById('compareDataId').value = dataId || '';
     document.getElementById('compareGroup').value = group || 'DEFAULT_GROUP';
 
-    fetchHistoryAndCompare();
+    // 4. 自动发起历史记录查询与版本对比
+    await fetchHistoryAndCompare();
 }
 
-// 核心：查询并拉取全量历史版本清单
+// 查询并拉取全量历史版本清单
 async function fetchHistoryAndCompare() {
     const nsSelect = document.getElementById('compareNsSelect');
-    if (nsSelect.options.length === 0) {
+    if (!nsSelect || nsSelect.options.length === 0) {
         initCompareNsDropdown();
     }
 
-    const selectedNs = nsSelect.value || '';
+    const selectedNs = nsSelect ? nsSelect.value : (activeNamespaceId || '');
     const dataId = document.getElementById('compareDataId').value.trim();
     const group = document.getElementById('compareGroup').value.trim();
     const statusMsg = document.getElementById('compareStatusMsg');
@@ -57,7 +69,7 @@ async function fetchHistoryAndCompare() {
         return;
     }
 
-    statusMsg.style.display = 'none';
+    if (statusMsg) statusMsg.style.display = 'none';
     document.getElementById('leftDiffBody').innerHTML = '<span style="color:#00f0ff;">正在检索历史版本记录...</span>';
     document.getElementById('rightDiffBody').innerHTML = '<span style="color:#00f0ff;">正在检索历史版本记录...</span>';
 
@@ -87,12 +99,14 @@ async function fetchHistoryAndCompare() {
             label: '【当前最新配置】'
         };
 
-        // Populate 左右两个版本的下拉选单
+        // 3. 填充左右版本的下拉选单并展示对比结果
         populateVersionSelects();
 
     } catch (err) {
-        statusMsg.innerText = `[!] 获取历史版本失败: ${err.message}`;
-        statusMsg.style.display = 'block';
+        if (statusMsg) {
+            statusMsg.innerText = `[!] 获取历史版本失败: ${err.message}`;
+            statusMsg.style.display = 'block';
+        }
     }
 }
 
@@ -104,7 +118,6 @@ function populateVersionSelects() {
     leftSelect.innerHTML = '';
     rightSelect.innerHTML = '';
 
-    // 添加“当前最新版本”
     const currentOptRight = document.createElement('option');
     currentOptRight.value = 'current';
     currentOptRight.innerText = '当前最新版本 (Current)';
@@ -132,7 +145,6 @@ function populateVersionSelects() {
         });
     }
 
-    // 默认：右侧选当前最新，左侧选最近的一次历史版本 (#1)
     rightSelect.value = 'current';
     if (historyListCache.length > 0) {
         leftSelect.value = historyListCache[0].nid;
@@ -149,13 +161,12 @@ async function triggerDiffRender() {
     const rightNid = document.getElementById('compareRightVersion').value;
 
     const nsSelect = document.getElementById('compareNsSelect');
-    const selectedNs = nsSelect.value || '';
+    const selectedNs = nsSelect ? nsSelect.value : (activeNamespaceId || '');
     const dataId = document.getElementById('compareDataId').value.trim();
     const group = document.getElementById('compareGroup').value.trim() || 'DEFAULT_GROUP';
     const token = localStorage.getItem('nacos_access_token') || '';
     const tenantParam = (selectedNs === 'public' || !selectedNs) ? '' : selectedNs;
 
-    // 拉取选定版本的具体内容
     const leftContent = await fetchContentByNid(leftNid, dataId, group, tenantParam, token);
     const rightContent = await fetchContentByNid(rightNid, dataId, group, tenantParam, token);
 
@@ -175,7 +186,6 @@ async function fetchContentByNid(nid, dataId, group, tenant, token) {
         return historyDetailMap[nid];
     }
 
-    // 找到对应 nid 的时间信息
     const item = historyListCache.find(i => String(i.nid) === String(nid));
     const timeInfo = item ? `修改时间: ${item.lastModifiedTime}` : `NID: ${nid}`;
 

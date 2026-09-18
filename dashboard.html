@@ -201,15 +201,45 @@
         </section>
 
         <section id="view-query" class="view-section">
-            <h2>配置查询</h2>
-            <div class="toolbar">
-                <input id="queryDataId" placeholder="Data ID">
-                <input id="queryGroup" placeholder="Group（默认 DEFAULT_GROUP）">
-                <button id="btnQuery" onclick="doQueryConfig()">查 询</button>
+    <h2>配置查询对比</h2>
+    <div class="compare-panels">
+        <div class="compare-panel">
+            <div class="panel-toolbar">
+                <select id="qLeftNs" class="ns-select" title="Namespace"></select>
+                <input id="qLeftGroup" placeholder="Group" list="compareGroupList">
+                <input id="qLeftDataId" placeholder="Data ID" list="compareDataIdList">
+                <button onclick="qLoadPanel('left')">加载</button>
             </div>
-            <div id="queryStatusMsg" class="status-msg"></div>
-            <div id="queryResultContainer"></div>
-        </section>
+            <div class="panel-header left-title">
+                <span>◀ 左侧配置</span>
+                <span class="meta" id="qLeftMeta"></span>
+            </div>
+            <div class="editor-wrap">
+                <pre class="highlight-layer" id="qLeftHighlight"></pre>
+                <textarea class="edit-layer" id="qLeftText" spellcheck="false"></textarea>
+            </div>
+        </div>
+        <div class="compare-panel">
+            <div class="panel-toolbar">
+                <select id="qRightNs" class="ns-select" title="Namespace"></select>
+                <input id="qRightGroup" placeholder="Group" list="compareGroupList">
+                <input id="qRightDataId" placeholder="Data ID" list="compareDataIdList">
+                <button onclick="qLoadPanel('right')">加载</button>
+                <button onclick="qSaveRight()" style="background:#238636;">保存</button>
+            </div>
+            <div class="panel-header right-title">
+                <span>右侧配置 ▶（可编辑）</span>
+                <span class="meta" id="qRightMeta"></span>
+            </div>
+            <div class="editor-wrap">
+                <pre class="highlight-layer" id="qRightHighlight"></pre>
+                <textarea class="edit-layer" id="qRightText" spellcheck="false"></textarea>
+            </div>
+        </div>
+    </div>
+    <datalist id="compareGroupList"></datalist>
+    <datalist id="compareDataIdList"></datalist>
+</section>
 
         <section id="view-configs" class="view-section">
             <h2>修改配置 · <span id="currentNsTitle" style="color:#00ff88;">-</span></h2>
@@ -229,56 +259,36 @@
         </section>
 
         <section id="view-compare" class="view-section">
-            <h2>配置对比</h2>
-            <div class="compare-panels">
-                <!-- 左：上一版本 -->
-                <div class="compare-panel">
-                    <div class="panel-toolbar">
-                        <select id="leftNs" class="ns-select" title="Namespace"></select>
-                        <input id="leftGroup"  placeholder="Group"     list="compareGroupList">
-                        <input id="leftDataId" placeholder="Data ID"   list="compareDataIdList">
-                        <button onclick="loadPanel('left','history')">加载</button>
-                    </div>
-                    <div class="panel-versions">
-                        <label>历史版本</label>
-                        <select id="leftVersionSel"><option value="">（尚未加载）</option></select>
-                        <span class="ver-count" id="leftVersionCount"></span>
-                        <button class="btn-rollback" id="btnRollback" onclick="rollbackLeftVersion()" disabled>回滚到此版本</button>
-                    </div>
-                    <div class="panel-header left-title">
-                        <span>◀ 上一版本</span>
-                        <span class="meta" id="leftMeta"></span>
-                    </div>
-                    <div class="editor-wrap">
-                        <pre class="highlight-layer" id="leftHighlight"></pre>
-                        <textarea class="edit-layer" id="leftText" spellcheck="false"></textarea>
-                    </div>
-                </div>
-
-                <!-- 右：当前版本 -->
-                <div class="compare-panel">
-                    <div class="panel-toolbar">
-                        <select id="rightNs" class="ns-select" title="Namespace"></select>
-                        <input id="rightGroup"  placeholder="Group"     list="compareGroupList">
-                        <input id="rightDataId" placeholder="Data ID"   list="compareDataIdList">
-                        <button onclick="loadPanel('right','current')">加载</button>
-                    </div>
-                    <div class="panel-header right-title">
-                        <span>当前版本 ▶</span>
-                        <span class="meta" id="rightMeta"></span>
-                    </div>
-                    <div class="editor-wrap">
-                        <pre class="highlight-layer" id="rightHighlight"></pre>
-                        <textarea class="edit-layer" id="rightText" spellcheck="false"></textarea>
-                    </div>
-                </div>
+    <h2>对比版本 · <span id="cvContext" style="color:#00ff88;">-</span></h2>
+    <div class="compare-panels">
+        <div class="compare-panel">
+            <div class="panel-versions">
+                <label>历史版本</label>
+                <select id="cvLeftVersionSel"><option value="">（尚未加载）</option></select>
+                <span class="ver-count" id="cvLeftVersionCount"></span>
+                <button class="btn-rollback" id="cvBtnRollback" onclick="cvRollback()" disabled>回滚到此版本</button>
             </div>
-
-            <!-- 三处 datalist 供左右共用 -->
-            <datalist id="compareNsList"></datalist>
-            <datalist id="compareGroupList"></datalist>
-            <datalist id="compareDataIdList"></datalist>
-        </section>
+            <div class="panel-header left-title">
+                <span>◀ 历史版本</span>
+                <span class="meta" id="cvLeftMeta"></span>
+            </div>
+            <div class="editor-wrap">
+                <pre class="highlight-layer" id="cvLeftHighlight"></pre>
+                <textarea class="edit-layer" id="cvLeftText" spellcheck="false" readonly></textarea>
+            </div>
+        </div>
+        <div class="compare-panel">
+            <div class="panel-header right-title">
+                <span>当前版本 ▶</span>
+                <span class="meta" id="cvRightMeta"></span>
+            </div>
+            <div class="editor-wrap">
+                <pre class="highlight-layer" id="cvRightHighlight"></pre>
+                <textarea class="edit-layer" id="cvRightText" spellcheck="false" readonly></textarea>
+            </div>
+        </div>
+    </div>
+</section>
     </main>
 </div>
 

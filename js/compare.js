@@ -462,3 +462,245 @@ if (document.readyState === 'loading') {
 } else {
     initCompareView();
 }
+
+/* ---------- 对比版本 (cv) ---------- */
+let cvHistoryList = [];
+let cvCtx = { ns: '', group: '', dataId: '' };
+
+function cvRefreshDiff() {
+    const lt = document.getElementById('cvLeftText');
+    const rt = document.getElementById('cvRightText');
+    if (!lt || !rt) return;
+    const { aDiff, bDiff } = _diff(lt.value, rt.value);
+    _renderHl(document.getElementById('cvLeftHighlight'), lt.value, aDiff, 'del');
+    _renderHl(document.getElementById('cvRightHighlight'), rt.value, bDiff, 'add');
+}
+async function cvOpen(dataId, group, nsId) {
+    cvCtx = { ns: nsId || (typeof activeNamespaceId !== 'undefined' ? activeNamespaceId : ''), group: group || 'DEFAULT_GROUP', dataId: dataId || '' };
+    document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+    const v = document.getElementById('view-compare');
+    if (v) v.classList.add('active');
+    const ctx = document.getElementById('cvContext');
+    if (ctx) ctx.innerText = `${cvCtx.dataId} (${cvCtx.group})`;
+    await Promise.all([cvLoadHistory(), cvLoadCurrent()]);
+}
+async function cvLoadHistory() {
+    const sel = document.getElementById('cvLeftVersionSel');
+    const cnt = document.getElementById('cvLeftVersionCount');
+    const btn = document.getElementById('cvBtnRollback');
+    const ta = document.getElementById('cvLeftText');
+    const meta = document.getElementById('cvLeftMeta');
+    if (!ta) return;
+    ta.value = '加载中...'; if (meta) meta.innerText = '';
+    cvRefreshDiff();
+    const token = localStorage.getItem('nacos_access_token') || '';
+    const base = (localStorage.getItem('nacos_server_url') || '').replace(/\/+$/, '');
+    const tenant = (cvCtx.ns === 'public' || !cvCtx.ns) ? '' : cvCtx.ns;
+    try {
+        const url = `${base}/nacos/v1/cs/history?search=accurate&dataId=${encodeURIComponent(cvCtx.dataId)}&group=${encodeURIComponent(cvCtx.group)}&tenant=${encodeURIComponent(tenant)}&pageNo=1&pageSize=30&accessToken=${encodeURIComponent(token)}`;
+        const r = await fetch(url);
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const d = await r.json();
+        const items = d.pageItems || [];
+        cvHistoryList = items;
+        if (sel) {
+            sel.innerHTML = '';
+            if (items.length === 0) {
+                const o = document.createElement('option'); o.value = ''; o.textContent = '（无历史版本）'; sel.appendChild(o);
+            } else {
+                items.forEach((it, idx) => {
+                    const o = document.createElement('option');
+                    o.value = String(idx);
+                    o.textContent = formatSimpleTime(it.lastModifiedTime || it.createdTime) + (idx === 0 ? '（最新历史版）' : `（第 ${idx+1} 旧）`);
+                    sel.appendChild(o);
+                });
+                sel.value = '0';
+            }
+        }
+        if (cnt) cnt.innerText = `共 ${items.length} 条`;
+        if (btn) btn.disabled = items.length === 0;
+        if (items.length > 0) await cvLoadVersionAt(0);
+        else { ta.value = '（没有历史版本）'; if (meta) meta.innerText = '无历史记录'; cvRefreshDiff(); }
+    } catch (e) {
+        ta.value = `[!] 加载历史失败: ${e.message}`; if (meta) meta.innerText = '加载失败';
+        if (btn) btn.disabled = true;
+        cvRefreshDiff();
+    }
+}
+async function cvLoadVersionAt(idx) {
+    const ta = document.getElementById('cvLeftText');
+    const meta = document.getElementById('cvLeftMeta');
+    if (!ta) return;
+    const item = cvHistoryList[idx];
+    if (!item) return;
+    ta.value = '加载中...';
+    if (meta) meta.innerText = formatSimpleTime(item.lastModifiedTime || item.createdTime) + (idx === 0 ? ' · 最新历史版' : '');
+    const token = localStorage.getItem('nacos_access_token') || '';
+    const base = (localStorage.getItem('nacos_server_url') || '').replace(/\/+$/, '');
+    const tenant = (cvCtx.ns === 'public' || !cvCtx.ns) ? '' : cvCtx.ns;
+    try {
+        const url = `${base}/nacos/v1/cs/history?nid=${encodeURIComponent(item.id)}&dataId=${encodeURIComponent(cvCtx.dataId)}&group=${encodeURIComponent(cvCtx.group)}&tenant=${encodeURIComponent(tenant)}&accessToken=${encodeURIComponent(token)}`;
+        const r = await fetch(url);
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const d = await r.json();
+        ta.value = d.content || '';
+    } catch (e) { ta.value = `[!] 获取历史内容失败: ${e.message}`; }
+    cvRefreshDiff();
+}
+async function cvOnVersionChange() {
+    const sel = document.getElementById('cvLeftVersionSel');
+    if (!sel) return;
+    const idx = parseInt(sel.value, 10);
+    if (isNaN(idx)) return;
+    await cvLoadVersionAt(idx);
+}
+async function cvLoadCurrent() {
+    const ta = document.getElementById('cvRightText');
+    const meta = document.getElementById('cvRightMeta');
+    if (!ta) return;
+    ta.value = '加载中...'; if (meta) meta.innerText = '';
+    cvRefreshDiff();
+    const token = localStorage.getItem('nacos_access_token') || '';
+    const base = (localStorage.getItem('nacos_server_url') || '').replace(/\/+$/, '');
+    const tenant = (cvCtx.ns === 'public' || !cvCtx.ns) ? '' : cvCtx.ns;
+    try {
+        const url = `${base}/nacos/v1/cs/configs?dataId=${encodeURIComponent(cvCtx.dataId)}&group=${encodeURIComponent(cvCtx.group)}&tenant=${encodeURIComponent(tenant)}&accessToken=${encodeURIComponent(token)}`;
+        const r = await fetch(url);
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        ta.value = await r.text();
+        if (meta) meta.innerText = '当前版本';
+    } catch (e) { ta.value = `[!] 加载失败: ${e.message}`; if (meta) meta.innerText = '加载失败'; }
+    cvRefreshDiff();
+}
+async function cvRollback() {
+    const sel = document.getElementById('cvLeftVersionSel');
+    if (!sel) return;
+    const idx = parseInt(sel.value, 10);
+    const item = cvHistoryList[idx];
+    if (!item) { alert('请先选择历史版本'); return; }
+    const ts = formatSimpleTime(item.lastModifiedTime || item.createdTime);
+    if (!confirm(`确定回滚到【${ts}】这个版本吗？`)) return;
+    const btn = document.getElementById('cvBtnRollback');
+    if (btn) { btn.disabled = true; btn.innerText = '回滚中...'; }
+    const token = localStorage.getItem('nacos_access_token') || '';
+    const base = (localStorage.getItem('nacos_server_url') || '').replace(/\/+$/, '');
+    const tenant = (cvCtx.ns === 'public' || !cvCtx.ns) ? '' : cvCtx.ns;
+    try {
+        const dUrl = `${base}/nacos/v1/cs/history?nid=${encodeURIComponent(item.id)}&dataId=${encodeURIComponent(cvCtx.dataId)}&group=${encodeURIComponent(cvCtx.group)}&tenant=${encodeURIComponent(tenant)}&accessToken=${encodeURIComponent(token)}`;
+        const dr = await fetch(dUrl);
+        if (!dr.ok) throw new Error('读取历史失败: HTTP ' + dr.status);
+        const dd = await dr.json();
+        const content = dd.content || '';
+        const body = new URLSearchParams({ dataId: cvCtx.dataId, group: cvCtx.group, tenant, content, accessToken: token });
+        const pr = await fetch(`${base}/nacos/v1/cs/configs`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+        const txt = (await pr.text()).trim();
+        if (pr.ok && txt.toLowerCase() === 'true') {
+            alert('✓ 回滚成功');
+            await Promise.all([cvLoadHistory(), cvLoadCurrent()]);
+        } else alert('[!] 回滚失败: ' + (txt || 'HTTP ' + pr.status));
+    } catch (e) { alert('[!] 回滚异常: ' + e.message); }
+    finally { if (btn) { btn.disabled = false; btn.innerText = '回滚到此版本'; } }
+}
+
+/* ---------- 查询对比 (q) ---------- */
+function qRefreshDiff() {
+    const lt = document.getElementById('qLeftText');
+    const rt = document.getElementById('qRightText');
+    if (!lt || !rt) return;
+    const { aDiff, bDiff } = _diff(lt.value, rt.value);
+    _renderHl(document.getElementById('qLeftHighlight'), lt.value, aDiff, 'del');
+    _renderHl(document.getElementById('qRightHighlight'), rt.value, bDiff, 'add');
+}
+async function qInit() {
+    await _ensureNsLoaded();
+    _fillNsSelect(document.getElementById('qLeftNs'));
+    _fillNsSelect(document.getElementById('qRightNs'));
+}
+async function qLoadPanel(side) {
+    const pre = side === 'left' ? 'qLeft' : 'qRight';
+    const nsEl = document.getElementById(pre + 'Ns');
+    const gEl  = document.getElementById(pre + 'Group');
+    const dEl  = document.getElementById(pre + 'DataId');
+    const ta   = document.getElementById(pre + 'Text');
+    const meta = document.getElementById(pre + 'Meta');
+    if (!ta) return;
+    const ns = nsEl ? nsEl.value.trim() : '';
+    const group = (gEl ? gEl.value.trim() : '') || 'DEFAULT_GROUP';
+    const dataId = dEl ? dEl.value.trim() : '';
+    if (!dataId) { alert('请填写 Data ID'); return; }
+    ta.value = '加载中...'; if (meta) meta.innerText = '';
+    qRefreshDiff();
+    const token = localStorage.getItem('nacos_access_token') || '';
+    const base = (localStorage.getItem('nacos_server_url') || '').replace(/\/+$/, '');
+    const tenant = (ns === 'public' || !ns) ? '' : ns;
+    try {
+        const url = `${base}/nacos/v1/cs/configs?dataId=${encodeURIComponent(dataId)}&group=${encodeURIComponent(group)}&tenant=${encodeURIComponent(tenant)}&accessToken=${encodeURIComponent(token)}`;
+        const r = await fetch(url);
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        ta.value = await r.text();
+        if (meta) meta.innerText = `${dataId} @ ${group}`;
+    } catch (e) { ta.value = `[!] 加载失败: ${e.message}`; if (meta) meta.innerText = '加载失败'; }
+    qRefreshDiff();
+    _refreshDatalists(ns).catch(() => {});
+}
+async function qSaveRight() {
+    const nsEl = document.getElementById('qRightNs');
+    const gEl  = document.getElementById('qRightGroup');
+    const dEl  = document.getElementById('qRightDataId');
+    const ta   = document.getElementById('qRightText');
+    if (!ta) return;
+    const ns = nsEl ? nsEl.value.trim() : '';
+    const group = (gEl ? gEl.value.trim() : '') || 'DEFAULT_GROUP';
+    const dataId = dEl ? dEl.value.trim() : '';
+    if (!dataId) { alert('请填写右侧 Data ID'); return; }
+    if (!confirm(`确定保存右侧内容到 ${dataId} @ ${group}？`)) return;
+    const token = localStorage.getItem('nacos_access_token') || '';
+    const base = (localStorage.getItem('nacos_server_url') || '').replace(/\/+$/, '');
+    const tenant = (ns === 'public' || !ns) ? '' : ns;
+    try {
+        const body = new URLSearchParams({ dataId, group, tenant, content: ta.value, accessToken: token });
+        const r = await fetch(`${base}/nacos/v1/cs/configs`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+        const txt = (await r.text()).trim();
+        if (r.ok && txt.toLowerCase() === 'true') alert('✓ 保存成功');
+        else alert('[!] 保存失败: ' + (txt || 'HTTP ' + r.status));
+    } catch (e) { alert('[!] 保存异常: ' + e.message); }
+}
+
+/* ---------- 兼容旧调用 ---------- */
+async function openCompareView(dataId, group, nsId) { return cvOpen(dataId, group, nsId); }
+function compareToQueryTab(p1, p2) {
+    let dataId = '', group = 'DEFAULT_GROUP';
+    if (typeof p1 === 'object' && p1 !== null) { dataId = p1.dataId || ''; group = p1.group || 'DEFAULT_GROUP'; }
+    else { dataId = p1 || ''; group = p2 || 'DEFAULT_GROUP'; }
+    return cvOpen(dataId, group, (typeof activeNamespaceId !== 'undefined' ? activeNamespaceId : ''));
+}
+function openCompareModal(p1, p2) { return compareToQueryTab(p1, p2); }
+
+/* ---------- 初始化 ---------- */
+function initCompareModule() {
+    _bindScroll('cvLeftText', 'cvLeftHighlight');
+    _bindScroll('cvRightText', 'cvRightHighlight');
+    _bindScroll('qLeftText', 'qLeftHighlight');
+    _bindScroll('qRightText', 'qRightHighlight');
+    const vSel = document.getElementById('cvLeftVersionSel');
+    if (vSel) vSel.addEventListener('change', cvOnVersionChange);
+    ['cvLeftText', 'cvRightText'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', () => { clearTimeout(el._t); el._t = setTimeout(cvRefreshDiff, 200); });
+    });
+    ['qLeftText', 'qRightText'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', () => { clearTimeout(el._t); el._t = setTimeout(qRefreshDiff, 200); });
+    });
+    ['qLeftDataId', 'qRightDataId'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('keydown', e => { if (e.key === 'Enter') qLoadPanel(id.startsWith('qLeft') ? 'left' : 'right'); });
+    });
+    ['qLeftNs', 'qRightNs'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', () => { _refreshDatalists(el.value).catch(() => {}); });
+    });
+    qInit().catch(() => {});
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initCompareModule);
+else initCompareModule();

@@ -1,11 +1,11 @@
 /**
  * ========================================================
  * 模块：js/compare.js
- * 职责：严格遵循 Nacos 官方 Admin/Console API 规范处理配置对比与历史记录
- * 特性：
- *   1. 完美兼容 Nacos v1 / v2 / v3 接口数据结构 (支持 data 嵌套与纯文本)
- *   2. 规范化时间展示：全统一为 2026-09-10 18:42:25 格式
- *   3. 严格校验 nid 参数，杜绝 undefined / null 发送到后端触发 NumberFormatException
+ * 职责：符合 Nacos 官方 API 规范的配置对比与历史记录查看
+ * 说明：
+ *   1. 自动适配单参数/双参数/多参数入口，彻底避免点击无反应问题
+ *   2. 严格规范时间显示为 2026-09-10 18:42:25 格式
+ *   3. 完美兼容 Nacos v1 / v2 / v3 接口
  * ========================================================
  */
 
@@ -16,79 +16,120 @@ let currentCompareGroup = '';
 let currentCompareTenant = '';
 
 /**
- * 时间清洗函数
- * 输入: 2026-09-10T18:42:25.731+08:00 / 1789000000000
- * 输出: 2026-09-10 18:42:25
+ * 统一时间格式化函数
+ * 将各类 ISO 8601、毫秒戳、微秒戳强制清洗为：YYYY-MM-DD HH:mm:ss
  */
 function formatSimpleTime(timeInput) {
     if (!timeInput) return '未知时间';
 
-    // 如果本身已经是规范格式，直接返回
-    if (typeof timeInput === 'string' && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(timeInput)) {
-        return timeInput;
+    // 已经是标准格式直接返回
+    if (typeof timeInput === 'string' && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(timeInput.trim())) {
+        return timeInput.trim();
     }
 
-    let date;
-    if (typeof timeInput === 'number' || (!isNaN(Number(timeInput)) && !String(timeInput).includes('-'))) {
-        date = new Date(Number(timeInput));
-    } else {
-        // 替换 ISO 8601 字符串中的 T 
-        let str = String(timeInput).replace('T', ' ');
-        // 截掉毫秒与时区尾巴 (+08:00 或 .731)
-        str = str.split('.')[0].split('+')[0].split('Z')[0];
-        date = new Date(str.replace(/-/g, '/')); // 兼容 Safari/Mac 日期解析
-        if (isNaN(date.getTime())) {
-            return str; // 解析失败则返回裁剪后的干净字符串
+    try {
+        let date;
+        if (typeof timeInput === 'number' || (!isNaN(Number(timeInput)) && !String(timeInput).includes('-'))) {
+            date = new Date(Number(timeInput));
+        } else {
+            let str = String(timeInput).replace('T', ' ');
+            str = str.split('.')[0].split('+')[0].split('Z')[0];
+            date = new Date(str.replace(/-/g, '/')); 
+            if (isNaN(date.getTime())) {
+                return str; 
+            }
         }
+
+        const pad = (num) => String(num).padStart(2, '0');
+        const year = date.getFullYear();
+        const month = pad(date.getMonth() + 1);
+        const day = pad(date.getDate());
+        const hours = pad(date.getHours());
+        const minutes = pad(date.getMinutes());
+        const seconds = pad(date.getSeconds());
+
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    } catch(e) {
+        return String(timeInput);
     }
-
-    const pad = (num) => String(num).padStart(2, '0');
-    const year = date.getFullYear();
-    const month = pad(date.getMonth() + 1);
-    const day = pad(date.getDate());
-    const hours = pad(date.getHours());
-    const minutes = pad(date.getMinutes());
-    const seconds = pad(date.getSeconds());
-
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 
-// 打开独立对比 Modal 弹窗
-async function compareToQueryTab(dataId, group) {
-    currentCompareDataId = dataId || '';
-    currentCompareGroup = group || 'DEFAULT_GROUP';
-    
-    // 官方规范：public 命名空间在请求租户/namespaceId 参数时应传递空字符串 ''
-    if (!activeNamespaceId || activeNamespaceId === 'public' || activeNamespaceId === 'undefined') {
-        currentCompareTenant = '';
-    } else {
-        currentCompareTenant = activeNamespaceId;
+/**
+ * 主入口函数：支持多种调用习惯 (兼容旧代码与新代码)
+ */
+async function compareToQueryTab(p1, p2) {
+    try {
+        // 自动识别参数：可能传入的是 (dataId, group) 或 (index)
+        if (typeof p1 === 'object' && p1 !== null) {
+            currentCompareDataId = p1.dataId || p1.id || '';
+            currentCompareGroup = p1.group || 'DEFAULT_GROUP';
+        } else if (typeof p1 === 'number' && typeof configList !== 'undefined' && configList[p1]) {
+            const item = configList[p1];
+            currentCompareDataId = item.dataId || '';
+            currentCompareGroup = item.group || 'DEFAULT_GROUP';
+        } else {
+            currentCompareDataId = p1 || '';
+            currentCompareGroup = p2 || 'DEFAULT_GROUP';
+        }
+
+        // 处理 namespaceId / tenant 规范
+        if (typeof activeNamespaceId !== 'undefined') {
+            if (!activeNamespaceId || activeNamespaceId === 'public' || activeNamespaceId === 'undefined') {
+                currentCompareTenant = '';
+            } else {
+                currentCompareTenant = activeNamespaceId;
+            }
+        } else {
+            currentCompareTenant = '';
+        }
+
+        // 强行激活对比弹窗
+        const modal = document.getElementById('compareModal');
+        if (modal) {
+            modal.classList.add('active');
+        } else {
+            alert('未找到对比弹窗容器 #compareModal');
+            return;
+        }
+
+        const titleEl = document.getElementById('compareModalTitle');
+        if (titleEl) {
+            titleEl.innerText = `${currentCompareDataId} (${currentCompareGroup})`;
+        }
+
+        const statusMsg = document.getElementById('compareStatusMsg');
+        if (statusMsg) statusMsg.style.display = 'none';
+
+        document.getElementById('leftDiffBody').innerHTML = '<span style="color:#00f0ff;padding:10px;display:block;">正在检索历史版本记录...</span>';
+        document.getElementById('rightDiffBody').innerHTML = '<span style="color:#00f0ff;padding:10px;display:block;">正在检索历史版本记录...</span>';
+
+        await fetchHistoryAndCompare();
+
+    } catch (err) {
+        console.error('compareToQueryTab 异常:', err);
+        alert('无法启动对比弹窗: ' + err.message);
     }
+}
 
-    document.getElementById('compareModalTitle').innerText = `${currentCompareDataId} (${currentCompareGroup})`;
-    document.getElementById('compareModal').classList.add('active');
-
-    const statusMsg = document.getElementById('compareStatusMsg');
-    if (statusMsg) statusMsg.style.display = 'none';
-
-    document.getElementById('leftDiffBody').innerHTML = '<span style="color:#00f0ff;">正在检索历史版本记录...</span>';
-    document.getElementById('rightDiffBody').innerHTML = '<span style="color:#00f0ff;">正在检索历史版本记录...</span>';
-
-    await fetchHistoryAndCompare();
+// 提供别名函数，防止主列表脚本调用的方法名不一致
+function openCompareModal(p1, p2) {
+    compareToQueryTab(p1, p2);
 }
 
 function closeCompareModal() {
-    document.getElementById('compareModal').classList.remove('active');
+    const modal = document.getElementById('compareModal');
+    if (modal) modal.classList.remove('active');
 }
 
-// 查询并拉取历史版本清单 (遵循 /nacos/v1/cs/history GET 规范)
+// 核心逻辑：获取历史列表与当前配置
 async function fetchHistoryAndCompare() {
     const token = localStorage.getItem('nacos_access_token') || '';
     const statusMsg = document.getElementById('compareStatusMsg');
 
     try {
-        // 1. 获取 Nacos 历史版本列表
+        // 1. 获取 Nacos 历史版本列表 (/nacos/v1/cs/history)
         const historyUrl = `${SERVER_URL}/nacos/v1/cs/history?search=accurate&dataId=${encodeURIComponent(currentCompareDataId)}&group=${encodeURIComponent(currentCompareGroup)}&tenant=${encodeURIComponent(currentCompareTenant)}&pageNo=1&pageSize=20&accessToken=${token}`;
+        
         const historyRes = await fetch(historyUrl);
         const historyText = await historyRes.text();
 
@@ -96,10 +137,10 @@ async function fetchHistoryAndCompare() {
         try { 
             historyData = JSON.parse(historyText); 
         } catch (e) {
-            console.warn('历史列表解析非 JSON:', historyText);
+            console.warn('历史列表非 JSON 格式:', historyText);
         }
 
-        // 兼容 v1 (pageItems) 与 v2/v3 (data.pageItems / data) 结构
+        // 兼容不同的 Nacos 版本数据格式
         if (historyData.data && Array.isArray(historyData.data.pageItems)) {
             historyListCache = historyData.data.pageItems;
         } else if (Array.isArray(historyData.pageItems)) {
@@ -112,7 +153,7 @@ async function fetchHistoryAndCompare() {
 
         historyDetailMap = {};
 
-        // 2. 获取当前最新实时配置 (作为基准版)
+        // 2. 获取当前实时配置作为基准版本
         const currUrl = `${SERVER_URL}/nacos/v1/cs/configs?dataId=${encodeURIComponent(currentCompareDataId)}&group=${encodeURIComponent(currentCompareGroup)}&tenant=${encodeURIComponent(currentCompareTenant)}&accessToken=${token}`;
         const currRes = await fetch(currUrl);
         const currentContent = await currRes.text();
@@ -122,7 +163,7 @@ async function fetchHistoryAndCompare() {
             time: '当前最新状态'
         };
 
-        // 3. 渲染版本下拉框
+        // 3. 渲染选项框
         populateVersionSelects();
 
     } catch (err) {
@@ -133,7 +174,7 @@ async function fetchHistoryAndCompare() {
     }
 }
 
-// 从项目条目中提取有效历史 ID (兼容 nid / id / historyId)
+// 帮助获取有效的 NID
 function getValidHistoryId(item) {
     if (!item) return null;
     const val = item.nid !== undefined ? item.nid : (item.id !== undefined ? item.id : item.historyId);
@@ -143,10 +184,12 @@ function getValidHistoryId(item) {
     return String(val);
 }
 
-// 填充版本下拉选择框
+// 填充下拉选框
 function populateVersionSelects() {
     const leftSelect = document.getElementById('compareLeftVersion');
     const rightSelect = document.getElementById('compareRightVersion');
+
+    if (!leftSelect || !rightSelect) return;
 
     leftSelect.innerHTML = '';
     rightSelect.innerHTML = '';
@@ -182,12 +225,12 @@ function populateVersionSelects() {
     if (validCount === 0) {
         const noHistOpt = document.createElement('option');
         noHistOpt.value = 'current';
-        noHistOpt.innerText = '无历史版本 (使用当前状态)';
+        noHistOpt.innerText = '无历史记录 (对照当前状态)';
         leftSelect.appendChild(noHistOpt);
     }
 
     rightSelect.value = 'current';
-    
+
     const firstValidId = historyListCache.map(getValidHistoryId).find(id => id !== null);
     if (firstValidId) {
         leftSelect.value = firstValidId;
@@ -198,7 +241,7 @@ function populateVersionSelects() {
     triggerDiffRender();
 }
 
-// 根据选中的左右版本进行数据拉取并对比渲染
+// 触发对比渲染
 async function triggerDiffRender() {
     const leftSelect = document.getElementById('compareLeftVersion');
     const rightSelect = document.getElementById('compareRightVersion');
@@ -212,14 +255,13 @@ async function triggerDiffRender() {
     const leftContent = await fetchContentById(leftId, token);
     const rightContent = await fetchContentById(rightId, token);
 
-    // 确保标题上的时间也被 formatSimpleTime 清洗过
     document.getElementById('leftPaneTitle').innerText = `← ${formatSimpleTime(leftContent.time)}`;
     document.getElementById('rightPaneTitle').innerText = `→ ${formatSimpleTime(rightContent.time)}`;
 
     renderDiffViews(leftContent.text, rightContent.text);
 }
 
-// 按照官方 API 要求获取单个历史版本明细
+// 请求具体的历史明细内容
 async function fetchContentById(historyId, token) {
     if (!historyId || historyId === 'current' || historyId === 'undefined') {
         return historyDetailMap['current'] || { text: '', time: '当前最新状态' };
@@ -232,47 +274,48 @@ async function fetchContentById(historyId, token) {
     const item = historyListCache.find(i => getValidHistoryId(i) === String(historyId));
     const rawTime = item ? (item.lastModifiedTime || item.createdTime || item.modifiedTime) : '';
     const cleanTime = formatSimpleTime(rawTime);
-    const timeInfo = item ? `修改时间: ${cleanTime}` : `版本 ID: ${historyId}`;
 
     try {
-        // 官方文档：获取特定历史版本明细必须包含 nid, dataId, group
         const detailUrl = `${SERVER_URL}/nacos/v1/cs/history?dataId=${encodeURIComponent(currentCompareDataId)}&group=${encodeURIComponent(currentCompareGroup)}&tenant=${encodeURIComponent(currentCompareTenant)}&nid=${encodeURIComponent(historyId)}&accessToken=${token}`;
         const res = await fetch(detailUrl);
         const text = await res.text();
 
         let content = text;
-        
-        // 解析官方标准的 JSON 响应包
+
         if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
             try {
                 const json = JSON.parse(text);
-                // Nacos v2/v3 嵌套在 json.data 中，v1 嵌套在 json.content 或 json 中
                 if (json.data && json.data.content !== undefined) {
                     content = json.data.content;
                 } else if (json.content !== undefined) {
                     content = json.content;
-                } else {
-                    content = text;
                 }
-            } catch(e) {
-                content = text;
-            }
+            } catch(e) {}
         }
 
-        // 防御：若服务端返回了异常抛出字符串
-        if (content.includes('caused:') || content.includes('NumberFormatException')) {
-            content = `[!] 读取历史版本明细失败，服务端未能找到 NID=${historyId} 的配置记录`;
+        if (content.includes('NumberFormatException') || content.includes('caused:')) {
+            content = `[!] 服务端无法识别该历史记录 (NID=${historyId})`;
         }
 
         historyDetailMap[historyId] = { text: content, time: cleanTime };
         return historyDetailMap[historyId];
 
     } catch(e) {
-        return { text: `[!] 拉取版本失败: ${e.message}`, time: cleanTime };
+        return { text: `[!] 读取历史数据失败: ${e.message}`, time: cleanTime };
     }
 }
 
-// 渲染左右分屏 Side-by-Side 差异
+// 简单 HTML 转义
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+// 比对并按行呈现
 function renderDiffViews(oldText, newText) {
     const oldLines = (oldText || '').split('\n');
     const newLines = (newText || '').split('\n');
@@ -304,6 +347,6 @@ function renderDiffViews(oldText, newText) {
         }
     }
 
-    document.getElementById('leftDiffBody').innerHTML = leftHtml || '<span style="color:#8b949e;">(空)</span>';
-    document.getElementById('rightDiffBody').innerHTML = rightHtml || '<span style="color:#8b949e;">(空)</span>';
+    document.getElementById('leftDiffBody').innerHTML = leftHtml || '<span style="color:#8b949e;">(无数据)</span>';
+    document.getElementById('rightDiffBody').innerHTML = rightHtml || '<span style="color:#8b949e;">(无数据)</span>';
 }

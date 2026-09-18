@@ -1,5 +1,18 @@
 // 1. 动态获取服务地址，禁止在开源代码中硬编码真实敏感域名
-const SERVER_URL = localStorage.getItem('nacos_server_addr') || window.SERVER_URL || window.location.origin;
+const SERVER_URL = (() => {
+    // 只信任 index.html 解密后写入 sessionStorage 的配置
+    try {
+        const cfg = JSON.parse(sessionStorage.getItem('nacos_test_cfg') || 'null');
+        if (cfg && cfg.url) {
+            // 同步到 localStorage 供旧代码使用
+            localStorage.setItem('nacos_server_url', cfg.url);
+            localStorage.setItem('nacos_server_addr', cfg.url);
+            return cfg.url;
+        }
+    } catch (e) {}
+    // 没有 sessionStorage 配置 → auth.js 会跳回 index.html，这里返回空
+    return '';
+})();
 const PAGE_SIZE = 100;
 
 // 全局状态管理

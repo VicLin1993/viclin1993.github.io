@@ -1,0 +1,7 @@
+// auto-generated - DO NOT EDIT
+window.AUTH_CFG = {
+  SALT: 'Bp9pxb3RkAIrzF2M56d72A==',
+  ITER: 200000,
+  ENC_TEST: 'YzUSFY1sigKhTeGdiT0Uu0ELeHVxKmykrJXL9B7c5FgJAzqbUAVb6ciuCYH9QfAfijBP7rPAxMKX09VjQG36KjgPel2ux858c+goXXI5mLeVAryi2CZfE7xmgiEKihNaFY4lsT4bFnOzLsPp',
+  ENC_PROD: 'hz759envjWk0QLDZQwNtpoSxw5bISzzHLpMABC5LRNNFazgcseorw9ylBurepnFevegYV8xuoyaThwpfz8rDczzHB038F4Fe1qBQmmKrPOmLdJGx2UshHmCl40MOBKGWYtzq1SE4'
+};

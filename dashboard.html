@@ -742,6 +742,134 @@ window.populateNamespaceSelect = function(selectElem) {
 })();
 </script>
 
+
+<script>
+(function() {
+    window.renderInPlaceCompare = function(dataId, group, namespaceId) {
+        namespaceId = namespaceId || 'public';
+        const baseUrl = 'https://nacos.wayturnlive.com';
+
+        let compareContainer = document.getElementById('in-place-compare-container');
+        if (!compareContainer) {
+            compareContainer = document.createElement('div');
+            compareContainer.id = 'in-place-compare-container';
+            compareContainer.style.cssText = 'margin: 20px 0; padding: 15px; background: #fff; border: 2px solid #58a6ff; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
+            
+            const tableOrMain = document.querySelector('table') || document.querySelector('.main-content') || document.body;
+            if (tableOrMain.parentNode) {
+                tableOrMain.parentNode.insertBefore(compareContainer, tableOrMain.nextSibling);
+            } else {
+                document.body.appendChild(compareContainer);
+            }
+        }
+
+        const apiPath = `/nacos/v3/admin/cs/history/list?namespaceId=${encodeURIComponent(namespaceId)}&groupName=${encodeURIComponent(group)}&dataId=${encodeURIComponent(dataId)}&pageNo=1&pageSize=100`;
+        const fullApiUrl = baseUrl + apiPath;
+
+        compareContainer.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 12px;">
+                <h3 style="margin: 0; color: #1f2328;">📊 配置历史版本列表 (${dataId})</h3>
+                <button onclick="document.getElementById('in-place-compare-container').remove()" style="padding: 4px 12px; background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 4px; cursor: pointer;">关闭</button>
+            </div>
+            <div style="font-size: 13px; color: #57606a; margin-bottom: 12px; background: #f6f8fa; padding: 8px; border-radius: 4px;">
+                <b>Domain:</b> ${baseUrl} &nbsp;|&nbsp; 
+                <b>Namespace:</b> ${namespaceId} &nbsp;|&nbsp; 
+                <b>Group:</b> ${group} &nbsp;|&nbsp; 
+                <b>Data ID:</b> ${dataId}
+            </div>
+            <div id="compare-loading" style="color: #0969da; padding: 10px 0;">⏳ 正在调取 Nacos 历史版本 API...</div>
+            <div id="compare-history-list" style="margin-top: 10px;"></div>
+        `;
+
+        compareContainer.scrollIntoView({ behavior: 'smooth' });
+
+        // 获取当前登录的 token
+        const accessToken = localStorage.getItem('accessToken') || localStorage.getItem('token') || localStorage.getItem('nacos_token') || '';
+        const headers = {
+            'Accept': 'application/json, text/plain, */*'
+        };
+        if (accessToken) {
+            headers['accessToken'] = accessToken;
+            headers['Authorization'] = 'Bearer ' + accessToken;
+        }
+
+        fetch(fullApiUrl, { headers })
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error(`HTTP 错误 ${res.status} (${res.statusText})`);
+                }
+                return res.json();
+            })
+            .then(resData => {
+                const loadingElem = document.getElementById('compare-loading');
+                if (loadingElem) loadingElem.style.display = 'none';
+
+                const listElem = document.getElementById('compare-history-list');
+                if (!listElem) return;
+
+                const data = resData.data || resData;
+                const items = data.pageItems || [];
+
+                if (!items || items.length === 0) {
+                    listElem.innerHTML = `<div style="color: #cf222e; padding: 10px; background: #ffebe9; border-radius: 4px;">⚠️ 暂无历史版本数据 (totalCount: ${data.totalCount || 0})</div>`;
+                    return;
+                }
+
+                let html = `
+                    <p style="margin-bottom: 8px; font-weight: bold;">共找到 ${data.totalCount || items.length} 条历史版本：</p>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+                        <thead>
+                            <tr style="background: #f6f8fa; border-bottom: 2px solid #d0d7de;">
+                                <th style="padding: 6px;">ID</th>
+                                <th style="padding: 6px;">操作类型</th>
+                                <th style="padding: 6px;">发布类型</th>
+                                <th style="padding: 6px;">来源 IP</th>
+                                <th style="padding: 6px;">修改时间</th>
+                                <th style="padding: 6px;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                items.forEach(item => {
+                    const timeStr = item.modifyTime ? new Date(item.modifyTime).toLocaleString() : '-';
+                    const opTypeMap = { 'I': '新增', 'U': '更新', 'D': '删除' };
+                    const opText = opTypeMap[item.opType] || item.opType;
+
+                    html += `
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 6px;">${item.id}</td>
+                            <td style="padding: 6px;"><span style="background: #e6f7ff; color: #1890ff; padding: 2px 6px; border-radius: 3px;">${opText}</span></td>
+                            <td style="padding: 6px;">${item.publishType || 'formal'}</td>
+                            <td style="padding: 6px;">${item.srcIp || '-'}</td>
+                            <td style="padding: 6px;">${timeStr}</td>
+                            <td style="padding: 6px;">
+                                <button onclick="alert('选中的历史版本 ID: ${item.id}')" style="padding: 2px 8px; cursor: pointer;">比对内容</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += `</tbody></table>`;
+                listElem.innerHTML = html;
+
+                if (window.appendDebugLog) {
+                    window.appendDebugLog(`[API成功] 成功调取 nacos.wayturnlive.com 获取到 ${items.length} 条记录`, 'info');
+                }
+            })
+            .catch(err => {
+                const loadingElem = document.getElementById('compare-loading');
+                if (loadingElem) {
+                    loadingElem.innerHTML = `<div style="color: #cf222e; padding: 10px; background: #ffebe9; border-radius: 4px;">❌ 请求 Nacos 失败: ${err.message}<br><small>请求地址: ${fullApiUrl}</small></div>`;
+                }
+                if (window.appendDebugLog) {
+                    window.appendDebugLog(`[API失败] ${err.message}`, 'error');
+                }
+            });
+    };
+})();
+</script>
+
 </head>
 <body>
 

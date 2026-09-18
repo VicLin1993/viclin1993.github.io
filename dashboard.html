@@ -747,7 +747,7 @@ window.populateNamespaceSelect = function(selectElem) {
 (function() {
     window.renderInPlaceCompare = function(dataId, group, namespaceId) {
         namespaceId = namespaceId || 'public';
-        const baseUrl = 'https://nacos.wayturnlive.com';
+        const baseUrl = '" + (window.ENV_NACOS_HOST || localStorage.getItem('nacos_server_addr') || window.location.origin) + "';
 
         let compareContainer = document.getElementById('in-place-compare-container');
         if (!compareContainer) {

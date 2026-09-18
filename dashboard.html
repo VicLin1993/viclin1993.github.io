@@ -25,8 +25,8 @@
         h2 { font-size: 18px; color: #58a6ff; margin-bottom: 18px; }
 
         .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
-        .toolbar input { background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 8px 12px; border-radius: 4px; font-size: 13px; min-width: 200px; }
-        .toolbar input:focus { border-color: #58a6ff; outline: none; }
+        .toolbar input, .toolbar select { background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 8px 12px; border-radius: 4px; font-size: 13px; min-width: 200px; }
+        .toolbar input:focus, .toolbar select:focus { border-color: #58a6ff; outline: none; }
         .toolbar button { background: #21262d; border: 1px solid #30363d; color: #c9d1d9; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
         .toolbar button:hover { background: #30363d; color: #fff; }
         .toolbar .count { color: #8b949e; font-size: 13px; }
@@ -57,10 +57,6 @@
         .config-table .btn-edit:hover { background: #1f6feb; color: #fff; border-color: #1f6feb; }
         .config-table .btn-compare:hover { background: #238636; color: #fff; border-color: #238636; }
 
-        .query-result { background: #161b22; border: 1px solid #30363d; border-radius: 6px; overflow: hidden; }
-        .query-result-header { padding: 10px 14px; background: #0d1117; border-bottom: 1px solid #30363d; color: #c9d1d9; font-size: 13px; }
-        .query-result-body { padding: 16px; margin: 0; color: #e6edf3; font-family: monospace; font-size: 13px; line-height: 1.5; overflow-x: auto; white-space: pre-wrap; word-break: break-all; max-height: 60vh; overflow-y: auto; }
-
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; }
         .modal.active { display: flex; }
         .modal-content { background: #161b22; border: 1px solid #30363d; border-radius: 6px; width: 90%; max-width: 900px; max-height: 85vh; display: flex; flex-direction: column; }
@@ -73,9 +69,40 @@
         .modal-footer button:hover { background: #30363d; }
         #saveConfigBtn { background: #238636; border-color: #238636; color: #fff; }
         #saveConfigBtn:hover { background: #2ea043; }
+
+        /* 对比视图 */
+        .compare-toolbar {
+            position: sticky; top: 0; z-index: 10;
+            background: #0d1117;
+            padding: 12px 0;
+            display: flex; gap: 10px; flex-wrap: wrap;
+            border-bottom: 1px solid #30363d;
+            margin-bottom: 16px;
+        }
+        .compare-toolbar .field { flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 4px; }
+        .compare-toolbar .field label { font-size: 11px; color: #8b949e; }
+        .compare-toolbar input { background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 8px 12px; border-radius: 4px; font-size: 13px; width: 100%; }
+        .compare-toolbar input:focus { border-color: #58a6ff; outline: none; }
+        .compare-toolbar button { background: #238636; border: 1px solid #238636; color: #fff; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; align-self: flex-end; }
+        .compare-toolbar button:hover { background: #2ea043; }
+
+        .compare-panels {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+            height: calc(100vh - 220px);
+        }
+        .compare-panel { display: flex; flex-direction: column; background: #161b22; border: 1px solid #30363d; border-radius: 6px; overflow: hidden; }
+        .compare-panel-header { padding: 10px 14px; background: #0d1117; border-bottom: 1px solid #30363d; color: #58a6ff; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+        .compare-panel-header .meta { color: #8b949e; font-size: 11px; }
+        .compare-panel textarea { flex: 1; background: #0d1117; color: #e6edf3; border: none; padding: 14px; font-family: Consolas, Monaco, monospace; font-size: 13px; line-height: 1.5; resize: none; outline: none; white-space: pre; overflow: auto; }
     </style>
 </head>
 <body>
+
+<script>
+    if (localStorage.getItem('is_authenticated') !== 'true') {
+        window.location.href = 'index.html';
+    }
+</script>
 
 <div class="layout">
     <aside class="sidebar">
@@ -90,7 +117,6 @@
     </aside>
 
     <main class="content">
-        <!-- 概览 -->
         <section id="view-overview" class="view-section active">
             <h2>命名空间概览</h2>
             <div class="toolbar">
@@ -105,7 +131,6 @@
             </div>
         </section>
 
-        <!-- 查询 -->
         <section id="view-query" class="view-section">
             <h2>配置查询</h2>
             <div class="toolbar">
@@ -117,7 +142,6 @@
             <div id="queryResultContainer"></div>
         </section>
 
-        <!-- 修改 -->
         <section id="view-configs" class="view-section">
             <h2>修改配置 · <span id="currentNsTitle" style="color:#00ff88;">-</span></h2>
             <div class="toolbar">
@@ -134,10 +158,47 @@
                 <tbody id="configTableBody"></tbody>
             </table>
         </section>
+
+        <section id="view-compare" class="view-section">
+            <h2>配置对比</h2>
+            <div class="compare-toolbar">
+                <div class="field">
+                    <label>Namespace</label>
+                    <input id="compareNs" list="compareNsList" placeholder="选择或输入命名空间">
+                    <datalist id="compareNsList"></datalist>
+                </div>
+                <div class="field">
+                    <label>Group</label>
+                    <input id="compareGroup" list="compareGroupList" placeholder="选择或输入 Group">
+                    <datalist id="compareGroupList"></datalist>
+                </div>
+                <div class="field">
+                    <label>Data ID</label>
+                    <input id="compareDataId" list="compareDataIdList" placeholder="选择或输入 Data ID">
+                    <datalist id="compareDataIdList"></datalist>
+                </div>
+                <button onclick="loadCompareContent()">加 载 对 比</button>
+            </div>
+            <div class="compare-panels">
+                <div class="compare-panel">
+                    <div class="compare-panel-header">
+                        <span>◀ 上一版本</span>
+                        <span class="meta" id="compareLeftMeta"></span>
+                    </div>
+                    <textarea id="compareLeft" spellcheck="false"></textarea>
+                </div>
+                <div class="compare-panel">
+                    <div class="compare-panel-header">
+                        <span>当前版本 ▶</span>
+                        <span class="meta" id="compareRightMeta"></span>
+                    </div>
+                    <textarea id="compareRight" spellcheck="false"></textarea>
+                </div>
+            </div>
+        </section>
     </main>
 </div>
 
-<!-- 编辑弹窗 -->
 <div id="editModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -152,7 +213,6 @@
     </div>
 </div>
 
-<!-- 业务脚本 -->
 <script src="js/debug-logger.js"></script>
 <script src="js/app.js"></script>
 <script src="js/overview.js"></script>
@@ -161,28 +221,12 @@
 <script src="js/compare.js"></script>
 
 <script>
-    // 从本地读取服务器地址（跟 index.html 存入的 key 一致）
     const _serverUrl = localStorage.getItem('nacos_server_url') || '';
-    // 兼容 app.js 里读取的旧 key
     localStorage.setItem('nacos_server_addr', _serverUrl);
 
     const _serverDisplay = document.getElementById('currentServer');
     if (_serverDisplay) _serverDisplay.innerText = _serverUrl || '未配置';
 
-    // 侧边栏高亮自动跟随视图变化（含 compare.js 跳转时的场景）
-    const _viewObserver = new MutationObserver(() => {
-        const activeView = document.querySelector('.view-section.active');
-        if (!activeView) return;
-        const tabKey = activeView.id.replace('view-', '');
-        document.querySelectorAll('.nav-item').forEach(el => {
-            el.classList.toggle('active', el.getAttribute('data-tab') === tabKey);
-        });
-    });
-    document.querySelectorAll('.view-section').forEach(el => {
-        _viewObserver.observe(el, { attributes: true, attributeFilter: ['class'] });
-    });
-
-    // 配置查询（compare.js 跳转也会调用此函数）
     async function doQueryConfig() {
         const dataId = document.getElementById('queryDataId').value.trim();
         const group  = document.getElementById('queryGroup').value.trim() || 'DEFAULT_GROUP';
@@ -217,11 +261,11 @@
 
             statusElem.style.display = 'none';
             resultElem.innerHTML = `
-                <div class="query-result">
-                    <div class="query-result-header">
+                <div style="background:#161b22;border:1px solid #30363d;border-radius:6px;overflow:hidden;">
+                    <div style="padding:10px 14px;background:#0d1117;border-bottom:1px solid #30363d;">
                         Data ID: <b>${escapeHtml(dataId)}</b> · Group: <b>${escapeHtml(group)}</b>
                     </div>
-                    <pre class="query-result-body">${escapeHtml(text)}</pre>
+                    <pre style="padding:16px;margin:0;color:#e6edf3;font-family:monospace;font-size:13px;line-height:1.5;overflow-x:auto;white-space:pre-wrap;word-break:break-all;max-height:60vh;overflow-y:auto;">${escapeHtml(text)}</pre>
                 </div>`;
         } catch (err) {
             statusElem.style.background = 'rgba(248,81,73,0.1)';

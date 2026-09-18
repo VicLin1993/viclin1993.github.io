@@ -1,21 +1,18 @@
-// 辅助函数：格式化 tenant 参数 (public 空间必须传空字符串)
 function getSanitizedTenant(nsId) {
     return (nsId === 'public' || nsId === 'public (默认)' || !nsId) ? '' : nsId;
 }
 
-// 辅助函数：安全转义 HTML，防止 XSS 和属性截断
 function escapeHtml(str) {
     if (!str) return '';
     return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 async function loadConfigsOfNamespace(namespaceId, namespaceName) {
-    // 规范化内部保存的 activeNamespaceId
     activeNamespaceId = namespaceId;
     
     const titleElem = document.getElementById('currentNsTitle');
@@ -41,7 +38,7 @@ async function loadConfigsOfNamespace(namespaceId, namespaceName) {
     if (statusMsg) statusMsg.style.display = 'none';
 
     const token = localStorage.getItem('nacos_access_token') || localStorage.getItem('accessToken') || '';
-    const cleanServerUrl = (typeof SERVER_URL !== 'undefined' ? SERVER_URL : '').replace(/\/+$/, '');
+    const cleanServerUrl = (typeof SERVER_URL !== 'undefined' ? SERVER_URL : (localStorage.getItem('nacos_server_url') || '')).replace(/\/+$/, '');
     const tenant = getSanitizedTenant(namespaceId);
 
     try {
@@ -64,7 +61,6 @@ async function loadConfigsOfNamespace(namespaceId, namespaceName) {
 
         const resData = await response.json();
 
-        // 兼容 Nacos Token 校验失败报错
         if (resData.code === 403 || resData.code === 401 || (resData.message && resData.message.toLowerCase().includes('token'))) {
             if (statusMsg) {
                 statusMsg.innerText = '[!] 登录凭证已过期，即将重新登录...';
@@ -121,7 +117,6 @@ function renderConfigTable(list) {
             </td>
         `;
 
-        // 通过事件监听绑定，避免 onclick 拼接字符串导致的引号引发报错
         const editBtn = tr.querySelector('.btn-edit');
         const compareBtn = tr.querySelector('.btn-compare');
 
@@ -132,7 +127,9 @@ function renderConfigTable(list) {
         }
         if (compareBtn) {
             compareBtn.onclick = () => {
-                if (typeof compareToQueryTab === 'function') compareToQueryTab(config.dataId, config.group);
+                if (typeof openCompareView === 'function') {
+                    openCompareView(config.dataId, config.group, activeNamespaceId);
+                }
             };
         }
 

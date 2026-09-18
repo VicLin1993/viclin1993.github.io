@@ -1,6 +1,91 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+
+<script>
+(function() {
+    function initConsole() {
+        if (document.getElementById('debug-console-panel')) return;
+
+        const style = document.createElement('style');
+        style.id = 'debug-console-style';
+        style.innerHTML = `
+            #debug-console-panel {
+                position: fixed !important; bottom: 0 !important; left: 0 !important; width: 100% !important; height: 180px !important;
+                background: #0d1117 !important; border-top: 2px solid #30363d !important; box-shadow: 0 -4px 12px rgba(0,0,0,0.5) !important;
+                z-index: 9999999 !important; font-family: monospace !important; font-size: 12px !important; display: flex !important; flex-direction: column !important;
+            }
+            #debug-console-panel.minimized { height: 30px !important; }
+            #debug-console-header {
+                background: #161b22 !important; color: #58a6ff !important; padding: 4px 12px !important; display: flex !important;
+                justify-content: space-between !important; align-items: center !important; border-bottom: 1px solid #30363d !important;
+            }
+            #debug-console-header button {
+                background: #21262d !important; color: #c9d1d9 !important; border: 1px solid #30363d !important; padding: 2px 6px !important;
+                margin-left: 6px !important; border-radius: 4px !important; cursor: pointer !important; font-size: 11px !important;
+            }
+            #debug-console-body {
+                flex: 1 !important; overflow-y: auto !important; padding: 8px 12px !important; color: #e6edf3 !important; line-height: 1.4 !important;
+                white-space: pre-wrap !important; word-break: break-all !important;
+            }
+            .log-item.error { color: #f85149 !important; }
+            .log-item.info { color: #58a6ff !important; }
+        `;
+        document.head.appendChild(style);
+
+        const panel = document.createElement('div');
+        panel.id = 'debug-console-panel';
+        panel.innerHTML = `
+            <div id="debug-console-header">
+                <b>🐞 调试日志控制台 (全局抓取)</b>
+                <div>
+                    <button onclick="window.copyDebugLogs()">复制日志</button>
+                    <button onclick="document.getElementById('debug-console-body').innerHTML=''">清空</button>
+                    <button id="debug-btn-toggle" onclick="window.toggleDebugConsole()">最小化</button>
+                </div>
+            </div>
+            <div id="debug-console-body"></div>
+        `;
+
+        if (document.body) document.body.appendChild(panel);
+    }
+
+    setInterval(() => {
+        if (!document.getElementById('debug-console-panel') && document.body) {
+            initConsole();
+        }
+    }, 500);
+
+    window.appendDebugLog = function(msg, type = 'info') {
+        initConsole();
+        const body = document.getElementById('debug-console-body');
+        if (!body) return;
+        const now = new Date();
+        const t = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+        const item = document.createElement('div');
+        item.className = `log-item ${type}`;
+        item.innerText = `[${t}] ${msg}`;
+        body.appendChild(item);
+        body.scrollTop = body.scrollHeight;
+    };
+
+    window.toggleDebugConsole = function() {
+        const p = document.getElementById('debug-console-panel');
+        const btn = document.getElementById('debug-btn-toggle');
+        p.classList.toggle('minimized');
+        btn.innerText = p.classList.contains('minimized') ? '展开' : '最小化';
+    };
+
+    window.copyDebugLogs = function() {
+        const body = document.getElementById('debug-console-body');
+        navigator.clipboard.writeText(body ? body.innerText : '').then(() => alert('日志已复制！'));
+    };
+
+    window.addEventListener('error', e => window.appendDebugLog(`[JS Error] ${e.message} (${e.filename}:${e.lineno})`, 'error'));
+    window.addEventListener('unhandledrejection', e => window.appendDebugLog(`[Promise Error] ${e.reason ? (e.reason.message || JSON.stringify(e.reason)) : e}`, 'error'));
+})();
+</script>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>秘密调整基地 // Nacos 控制台</title>

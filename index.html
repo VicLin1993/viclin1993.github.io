@@ -3,6 +3,7 @@
 <head>
 
 
+
 <script>
 (function() {
     function initConsole() {
@@ -51,7 +52,6 @@
         if (document.body) document.body.appendChild(panel);
     }
 
-    // 持续监控：若登录后 body 被覆盖重绘，自动重新挂载调试面板
     setInterval(() => {
         if (!document.getElementById('debug-console-panel') && document.body) {
             initConsole();
@@ -85,9 +85,9 @@
 
     window.addEventListener('error', e => window.appendDebugLog(`[JS Error] ${e.message} (${e.filename}:${e.lineno})`, 'error'));
     window.addEventListener('unhandledrejection', e => window.appendDebugLog(`[Promise Error] ${e.reason ? (e.reason.message || JSON.stringify(e.reason)) : e}`, 'error'));
-
 })();
 </script>
+
 
 
     <meta charset="UTF-8">

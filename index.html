@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TERMINAL ACCESS // 专享登录</title>
+    <title>终端访问 // 专属控制台登录</title>
     <style>
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Courier New', Courier, monospace;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
         }
 
         body {
@@ -33,7 +33,7 @@
             background: rgba(13, 22, 33, 0.85);
             border: 1px solid #00f0ff;
             box-shadow: 0 0 20px rgba(0, 240, 255, 0.2), inset 0 0 15px rgba(0, 240, 255, 0.1);
-            border-radius: 4px;
+            border-radius: 6px;
             padding: 40px;
             width: 100%;
             max-width: 440px;
@@ -44,7 +44,7 @@
             content: '';
             position: absolute;
             top: -5px; left: -5px;
-            width: 100px; height: 10px;
+            width: 12px; height: 12px;
             border-top: 2px solid #00ff88;
             border-left: 2px solid #00ff88;
         }
@@ -53,17 +53,18 @@
             content: '';
             position: absolute;
             bottom: -5px; right: -5px;
-            width: 10px; height: 10px;
+            width: 12px; height: 12px;
             border-bottom: 2px solid #00ff88;
             border-right: 2px solid #00ff88;
         }
 
         .title-area {
             margin-bottom: 30px;
+            text-align: center;
         }
 
         .title-area h2 {
-            font-size: 20px;
+            font-size: 22px;
             letter-spacing: 2px;
             color: #00ff88;
             text-shadow: 0 0 8px rgba(0, 255, 136, 0.6);
@@ -71,9 +72,9 @@
         }
 
         .title-area p {
-            font-size: 12px;
+            font-size: 13px;
             color: #58a6ff;
-            opacity: 0.8;
+            opacity: 0.85;
             letter-spacing: 1px;
         }
 
@@ -84,7 +85,7 @@
 
         .input-group label {
             display: block;
-            font-size: 12px;
+            font-size: 13px;
             color: #00f0ff;
             margin-bottom: 8px;
             letter-spacing: 1px;
@@ -94,11 +95,10 @@
             width: 100%;
             background: rgba(0, 0, 0, 0.5);
             border: 1px solid rgba(0, 240, 255, 0.4);
-            border-radius: 2px;
+            border-radius: 4px;
             padding: 12px;
             color: #00ff88;
             font-size: 14px;
-            font-family: inherit;
             outline: none;
             transition: all 0.3s ease;
         }
@@ -114,13 +114,13 @@
             background: transparent;
             border: 1px solid #00f0ff;
             color: #00f0ff;
-            font-family: inherit;
-            font-size: 14px;
+            font-size: 15px;
             font-weight: bold;
             letter-spacing: 2px;
             cursor: pointer;
             transition: all 0.3s ease;
             margin-top: 10px;
+            border-radius: 4px;
         }
 
         .btn-submit:hover {
@@ -131,7 +131,7 @@
 
         .error-tip {
             color: #ff5555;
-            font-size: 12px;
+            font-size: 13px;
             margin-top: 15px;
             text-align: center;
             display: none;
@@ -142,28 +142,28 @@
 
 <div class="login-box">
     <div class="title-area">
-        <h2>FIND THE KEY.</h2>
-        <p>START THE SEQUENCE.</p>
+        <h2>NACOS 专属管理终端</h2>
+        <p>请输入专属管理账号与密钥</p>
     </div>
 
     <form id="loginForm">
         <div class="input-group">
-            <label for="username">> USERNAME</label>
-            <input type="text" id="username" autocomplete="off" required>
+            <label for="username">管理账号</label>
+            <input type="text" id="username" placeholder="请输入账号" autocomplete="off" required>
         </div>
 
         <div class="input-group">
-            <label for="password">> SECURE KEY</label>
-            <input type="password" id="password" required>
+            <label for="password">安全密钥</label>
+            <input type="password" id="password" placeholder="请输入密码" required>
         </div>
 
-        <button type="submit" class="btn-submit">INITIALIZE ACCESS</button>
+        <button type="submit" class="btn-submit">登 录 系统</button>
         <div id="errorMsg" class="error-tip"></div>
     </form>
 </div>
 
 <script>
-    // 在这里修改你的专属账号和密码
+    // 设定你的专属登录账号和密码
     const ADMIN_USER = "vic";
     const ADMIN_PASS = "123456";
 
@@ -176,10 +176,10 @@
 
         if (inputUser === ADMIN_USER && inputPass === ADMIN_PASS) {
             localStorage.setItem('is_authenticated', 'true');
-            alert('验证成功，进入系统...');
+            alert('验证成功，正在进入专属控制台...');
             window.location.href = 'dashboard.html';
         } else {
-            errorMsg.innerText = '[!] ACCESS DENIED: INVALID USER OR KEY';
+            errorMsg.innerText = '[!] 验证失败：账号或安全密钥错误';
             errorMsg.style.display = 'block';
         }
     });

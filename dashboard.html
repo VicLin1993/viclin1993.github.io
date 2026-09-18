@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TERMINAL ACCESS // DASHBOARD</title>
+    <title>NACOS 专属配置控制台</title>
     <style>
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Courier New', Courier, monospace;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
         }
 
         body {
@@ -37,7 +37,7 @@
         header h1 {
             font-size: 20px;
             color: #00ff88;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
             text-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
         }
 
@@ -47,7 +47,7 @@
             gap: 12px;
             background: rgba(13, 22, 33, 0.8);
             border: 1px solid rgba(0, 240, 255, 0.3);
-            padding: 8px 12px;
+            padding: 8px 14px;
             border-radius: 4px;
         }
 
@@ -57,7 +57,7 @@
             color: #00ff88;
             outline: none;
             font-size: 13px;
-            width: 200px;
+            width: 220px;
         }
 
         .btn-action {
@@ -65,9 +65,10 @@
             border: 1px solid #00f0ff;
             color: #00f0ff;
             padding: 6px 12px;
-            font-size: 12px;
+            font-size: 13px;
             cursor: pointer;
             transition: all 0.2s;
+            border-radius: 3px;
         }
 
         .btn-action:hover {
@@ -77,13 +78,14 @@
         }
 
         .section-title {
-            font-size: 14px;
+            font-size: 15px;
             color: #58a6ff;
             margin-bottom: 16px;
             letter-spacing: 1px;
+            font-weight: bold;
         }
 
-        /* Namespace 每行 10 个卡片布局 */
+        /* 命名空间网格布局 (10列) */
         .namespace-grid {
             display: grid;
             grid-template-columns: repeat(10, 1fr);
@@ -107,7 +109,6 @@
             transition: all 0.25s ease;
             text-align: center;
             position: relative;
-            overflow: hidden;
             word-break: break-all;
         }
 
@@ -132,15 +133,15 @@
         }
 
         .ns-id {
-            font-size: 10px;
+            font-size: 11px;
             color: #8b949e;
         }
 
         .ns-count {
             margin-top: 6px;
-            font-size: 10px;
+            font-size: 11px;
             color: #00f0ff;
-            opacity: 0.8;
+            opacity: 0.85;
         }
 
         .status-msg {
@@ -153,27 +154,25 @@
 <body>
 
 <header>
-    <h1>SYSTEM DASHBOARD // NACOS TERMINAL</h1>
+    <h1>NACOS 专属配置控制台</h1>
     <div class="server-config">
-        <label style="font-size: 12px;">SERVER:</label>
-        <input type="text" id="nacosServer" placeholder="http://localhost:8848">
-        <button class="btn-action" onclick="fetchNamespaces()">FETCH NAMESPACES</button>
-        <button class="btn-action" style="border-color: #ff5555; color: #ff5555;" onclick="logout()">LOGOUT</button>
+        <label style="font-size: 13px;">服务地址：</label>
+        <input type="text" id="nacosServer" placeholder="例如: http://localhost:8848">
+        <button class="btn-action" onclick="fetchNamespaces()">刷新命名空间</button>
+        <button class="btn-action" style="border-color: #ff5555; color: #ff5555;" onclick="logout()">退出登录</button>
     </div>
 </header>
 
 <main>
-    <div class="section-title">> SELECT NAMESPACE [ GRID 1x10 ]</div>
+    <div class="section-title">> 选择命名空间（Namespace）</div>
     <div id="namespaceContainer" class="namespace-grid">
-        <!-- Namespace 动态加载到这里 -->
+        <!-- 命名空间列表 -->
     </div>
     <div id="statusMsg" class="status-msg"></div>
 </main>
 
 <script>
-    // 页面加载时初始化服务端地址
     window.addEventListener('DOMContentLoaded', () => {
-        // 检查登录状态
         if (localStorage.getItem('is_authenticated') !== 'true') {
             window.location.href = 'index.html';
             return;
@@ -185,7 +184,6 @@
         fetchNamespaces();
     });
 
-    // 获取所有 Namespace
     async function fetchNamespaces() {
         const serverUrl = document.getElementById('nacosServer').value.replace(/\/$/, '');
         localStorage.setItem('nacos_server_url', serverUrl);
@@ -193,17 +191,16 @@
         const container = document.getElementById('namespaceContainer');
         const statusMsg = document.getElementById('statusMsg');
         
-        container.innerHTML = '<div style="color: #00f0ff; font-size: 12px;">Loading Namespaces...</div>';
+        container.innerHTML = '<div style="color: #00f0ff; font-size: 13px;">正在加载命名空间列表...</div>';
         statusMsg.innerText = '';
 
         const token = localStorage.getItem('nacos_access_token') || '';
 
         try {
-            // Nacos Console 获取 namespaces API
             const response = await fetch(`${serverUrl}/nacos/v1/console/namespaces?accessToken=${token}`);
             
             if (!response.ok) {
-                throw new Error(`HTTP Error: ${response.status}`);
+                throw new Error(`网络响应错误: ${response.status}`);
             }
 
             const resData = await response.json();
@@ -212,31 +209,30 @@
             renderNamespaces(list);
         } catch (err) {
             container.innerHTML = '';
-            statusMsg.innerText = `[!] FETCH ERROR: ${err.message}. 提示：若涉及跨域，请确认 Nacos 后台已开启 CORS 或开启代理。`;
+            statusMsg.innerText = `[!] 获取失败: ${err.message}。提示：本地测试时若连不上可展示下方模拟数据。`;
             
-            // 加载模拟测试数据（若暂无真实连通）
+            // 连不上真实服务时自动渲染模拟数据供测试
             renderMockNamespaces();
         }
     }
 
-    // 渲染 Namespace 列表（横向每行 10 个卡片）
     function renderNamespaces(list) {
         const container = document.getElementById('namespaceContainer');
         container.innerHTML = '';
 
         if (!list || list.length === 0) {
-            container.innerHTML = '<div style="color: #8b949e;">未检测到任何 Namespace</div>';
+            container.innerHTML = '<div style="color: #8b949e;">未检测到任何命名空间</div>';
             return;
         }
 
         list.forEach((item, index) => {
             const card = document.createElement('div');
             card.className = 'ns-card';
-            if (index === 0) card.classList.add('active'); // 默认选中第一个
+            if (index === 0) card.classList.add('active');
 
-            const nsName = item.namespaceShowName || item.namespace || 'Public';
+            const nsName = item.namespaceShowName || item.namespace || '默认空间 (Public)';
             const nsId = item.namespace || 'public';
-            const configCount = item.configCount !== undefined ? `${item.configCount} Configs` : '';
+            const configCount = item.configCount !== undefined ? `${item.configCount} 项配置` : '';
 
             card.innerHTML = `
                 <div class="ns-name">${nsName}</div>
@@ -254,28 +250,25 @@
         });
     }
 
-    // 无法连通 Nacos 时的备用展示（演示效果）
     function renderMockNamespaces() {
         const mockList = [
-            { namespaceShowName: 'Public', namespace: 'public', configCount: 12 },
-            { namespaceShowName: 'SIT', namespace: 'stockus-k8s-sit', configCount: 45 },
-            { namespaceShowName: 'QAT', namespace: 'stockus-k8s-qat', configCount: 38 },
-            { namespaceShowName: 'DEV', namespace: 'v2test-dev', configCount: 22 },
-            { namespaceShowName: 'PROD', namespace: 'prod-main', configCount: 89 },
-            { namespaceShowName: 'TEST-1', namespace: 'test-1', configCount: 5 },
-            { namespaceShowName: 'TEST-2', namespace: 'test-2', configCount: 3 },
-            { namespaceShowName: 'STAGE', namespace: 'staging-env', configCount: 17 },
-            { namespaceShowName: 'DEMO', namespace: 'demo-app', configCount: 8 },
-            { namespaceShowName: 'PAYMENT', namespace: 'payment-center', configCount: 14 },
-            { namespaceShowName: 'USER', namespace: 'user-center', configCount: 20 }
+            { namespaceShowName: '默认空间', namespace: 'public', configCount: 12 },
+            { namespaceShowName: 'SIT 环境', namespace: 'stockus-k8s-sit', configCount: 45 },
+            { namespaceShowName: 'QAT 环境', namespace: 'stockus-k8s-qat', configCount: 38 },
+            { namespaceShowName: 'DEV 环境', namespace: 'v2test-dev', configCount: 22 },
+            { namespaceShowName: 'PROD 线上环境', namespace: 'prod-main', configCount: 89 },
+            { namespaceShowName: '测试集群 1', namespace: 'test-1', configCount: 5 },
+            { namespaceShowName: '测试集群 2', namespace: 'test-2', configCount: 3 },
+            { namespaceShowName: '预发布环境', namespace: 'staging-env', configCount: 17 },
+            { namespaceShowName: '演示环境', namespace: 'demo-app', configCount: 8 },
+            { namespaceShowName: '支付中心', namespace: 'payment-center', configCount: 14 },
+            { namespaceShowName: '用户中心', namespace: 'user-center', configCount: 20 }
         ];
         renderNamespaces(mockList);
     }
 
-    // Namespace 被点击后的回调函数（下一步开发列表搜寻）
     function onSelectNamespace(nsId, nsName) {
-        console.log('Selected Namespace:', nsId, nsName);
-        // 下一步将在下方渲染搜索栏与 YAML 匹配列表
+        console.log('已选择命名空间:', nsId, nsName);
     }
 
     function logout() {

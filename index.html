@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>秘密调整基地 // 身份验证</title>
-    <!-- 最先引入本地环境配置 -->
-    <script src="./env.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: #0d1117; color: #00f0ff; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
@@ -18,7 +16,11 @@
         .input-group input:focus { border-color: #00ff88; box-shadow: 0 0 8px rgba(0, 255, 136, 0.3); }
         .btn-submit { width: 100%; padding: 12px; background: transparent; border: 1px solid #00f0ff; color: #00f0ff; font-size: 15px; font-weight: bold; cursor: pointer; border-radius: 4px; transition: all 0.2s; }
         .btn-submit:hover { background: #00f0ff; color: #0d1117; }
+        .btn-secondary { width: 100%; padding: 8px; background: transparent; border: 1px solid #30363d; color: #8b949e; font-size: 12px; cursor: pointer; border-radius: 4px; margin-top: 10px; }
+        .btn-secondary:hover { border-color: #f85149; color: #f85149; }
         .error-tip { color: #ff5555; font-size: 13px; margin-top: 15px; text-align: center; display: none; }
+        .hint { color: #8b949e; font-size: 12px; margin-top: 10px; text-align: center; }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
@@ -26,81 +28,167 @@
 <div class="login-box">
     <div class="title-area">
         <h2>秘密调整基地</h2>
-        <p>个人控制台授权验证</p>
+        <p id="subtitle">个人控制台授权验证</p>
     </div>
 
-    <form id="loginForm">
+    <!-- 首次设置表单 -->
+    <form id="setupForm" class="hidden">
         <div class="input-group">
-            <label for="username">> 专属账号</label>
-            <input type="text" id="username" autocomplete="off" required>
+            <label>> 设置访问密码（自己定，用于进入控制台）</label>
+            <input type="password" id="setupAccessPass" required>
         </div>
-
         <div class="input-group">
-            <label for="password">> 身份密钥</label>
-            <input type="password" id="password" required>
+            <label>> Nacos 服务地址</label>
+            <input type="text" id="setupServerUrl" placeholder="https://nacos.example.com" required>
         </div>
+        <div class="input-group">
+            <label>> Nacos 账号</label>
+            <input type="text" id="setupNacosUser" required>
+        </div>
+        <div class="input-group">
+            <label>> Nacos 密码</label>
+            <input type="password" id="setupNacosPass" required>
+        </div>
+        <button type="submit" class="btn-submit">保 存 并 进 入</button>
+        <div id="setupError" class="error-tip"></div>
+    </form>
 
+    <!-- 日常登录表单 -->
+    <form id="loginForm" class="hidden">
+        <div class="input-group">
+            <label>> 访问密码</label>
+            <input type="password" id="accessPass" required>
+        </div>
         <button type="submit" class="btn-submit">接 入 控 制 台</button>
         <div id="errorMsg" class="error-tip"></div>
+        <button type="button" class="btn-secondary" id="resetBtn">重置本地配置（清除已保存的凭证）</button>
     </form>
 </div>
 
 <script>
-    const env = window.ENV || {};
-    const USER_ACCOUNT = env.FRONTEND_USER || '';
-    const USER_PASSWORD = env.FRONTEND_PASS || '';
-    const NACOS_SERVER = env.SERVER_URL || '';
-    const NACOS_USER = env.NACOS_USER || '';
-    const NACOS_PASS = env.NACOS_PASS || '';
+    const LS_KEYS = {
+        ACCESS_PASS: 'local_access_pass',
+        SERVER_URL: 'nacos_server_url',
+        NACOS_USER: 'nacos_user',
+        NACOS_PASS: 'nacos_pass'
+    };
 
-    if (USER_ACCOUNT) document.getElementById('username').value = USER_ACCOUNT;
-    if (USER_PASSWORD) document.getElementById('password').value = USER_PASSWORD;
+    const setupForm = document.getElementById('setupForm');
+    const loginForm = document.getElementById('loginForm');
+    const subtitle = document.getElementById('subtitle');
 
-    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+    // 判断是否已初始化
+    const hasConfig = localStorage.getItem(LS_KEYS.ACCESS_PASS)
+        && localStorage.getItem(LS_KEYS.SERVER_URL)
+        && localStorage.getItem(LS_KEYS.NACOS_USER)
+        && localStorage.getItem(LS_KEYS.NACOS_PASS);
+
+    if (hasConfig) {
+        subtitle.innerText = '个人控制台授权验证';
+        loginForm.classList.remove('hidden');
+    } else {
+        subtitle.innerText = '首次使用 · 请先完成配置';
+        setupForm.classList.remove('hidden');
+    }
+
+    // ====== 首次设置 ======
+    setupForm.addEventListener('submit', async function(e) {
         e.preventDefault();
+        const errBox = document.getElementById('setupError');
+        errBox.style.display = 'none';
 
-        const inputUser = document.getElementById('username').value.trim();
-        const inputPass = document.getElementById('password').value.trim();
-        const errorMsg = document.getElementById('errorMsg');
+        const accessPass = document.getElementById('setupAccessPass').value.trim();
+        const serverUrl = document.getElementById('setupServerUrl').value.trim().replace(/\/+$/, '');
+        const nacosUser = document.getElementById('setupNacosUser').value.trim();
+        const nacosPass = document.getElementById('setupNacosPass').value.trim();
 
-        errorMsg.style.display = 'none';
-
-        if (inputUser !== USER_ACCOUNT || inputPass !== USER_PASSWORD) {
-            errorMsg.innerText = '[!] 验证失败：账号或密钥不正确';
-            errorMsg.style.display = 'block';
+        if (!accessPass || !serverUrl || !nacosUser || !nacosPass) {
+            errBox.innerText = '[!] 所有字段都必须填写';
+            errBox.style.display = 'block';
             return;
         }
 
-        if (!NACOS_SERVER) {
-            errorMsg.innerText = '[!] 错误：未检测到 env.js 配置的 SERVER_URL';
-            errorMsg.style.display = 'block';
-            return;
-        }
-
+        // 先验证 Nacos 能不能登录
         try {
-            const response = await fetch(`${NACOS_SERVER}/nacos/v1/auth/users/login`, {
+            const resp = await fetch(`${serverUrl}/nacos/v1/auth/users/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({ username: NACOS_USER, password: NACOS_PASS })
+                body: new URLSearchParams({ username: nacosUser, password: nacosPass })
             });
+            const data = await resp.json();
+            if (!resp.ok || !data.accessToken) {
+                errBox.innerText = `[!] Nacos 登录失败: ${data.message || '请检查地址/账号/密码'}`;
+                errBox.style.display = 'block';
+                return;
+            }
 
-            const data = await response.json();
+            // 保存
+            localStorage.setItem(LS_KEYS.ACCESS_PASS, accessPass);
+            localStorage.setItem(LS_KEYS.SERVER_URL, serverUrl);
+            localStorage.setItem(LS_KEYS.NACOS_USER, nacosUser);
+            localStorage.setItem(LS_KEYS.NACOS_PASS, nacosPass);
 
-            if (response.ok && data.accessToken) {
+            // 直接用返回的 token 进 dashboard
+            localStorage.setItem('nacos_access_token', data.accessToken);
+            localStorage.setItem('is_authenticated', 'true');
+            window.location.href = 'dashboard.html';
+
+        } catch (err) {
+            errBox.innerText = `[!] 网络异常: ${err.message}`;
+            errBox.style.display = 'block';
+        }
+    });
+
+    // ====== 日常登录 ======
+    loginForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const errBox = document.getElementById('errorMsg');
+        errBox.style.display = 'none';
+
+        const inputPass = document.getElementById('accessPass').value.trim();
+        const savedPass = localStorage.getItem(LS_KEYS.ACCESS_PASS);
+
+        if (inputPass !== savedPass) {
+            errBox.innerText = '[!] 验证失败：访问密码不正确';
+            errBox.style.display = 'block';
+            return;
+        }
+
+        // 用本地存的 Nacos 凭证换取 token
+        const serverUrl = localStorage.getItem(LS_KEYS.SERVER_URL);
+        const nacosUser = localStorage.getItem(LS_KEYS.NACOS_USER);
+        const nacosPass = localStorage.getItem(LS_KEYS.NACOS_PASS);
+
+        try {
+            const resp = await fetch(`${serverUrl}/nacos/v1/auth/users/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ username: nacosUser, password: nacosPass })
+            });
+            const data = await resp.json();
+            if (resp.ok && data.accessToken) {
                 localStorage.setItem('nacos_access_token', data.accessToken);
-                localStorage.setItem('nacos_server_url', NACOS_SERVER);
                 localStorage.setItem('is_authenticated', 'true');
                 window.location.href = 'dashboard.html';
             } else {
-                errorMsg.innerText = `[!] Nacos 连接失败: ${data.message || '后端静默登录失败'}`;
-                errorMsg.style.display = 'block';
+                errBox.innerText = `[!] Nacos 连接失败: ${data.message || '凭证可能已失效，请重置配置'}`;
+                errBox.style.display = 'block';
             }
         } catch (err) {
-            errorMsg.innerText = `[!] 网络异常: ${err.message}`;
-            errorMsg.style.display = 'block';
+            errBox.innerText = `[!] 网络异常: ${err.message}`;
+            errBox.style.display = 'block';
+        }
+    });
+
+    // ====== 重置本地配置 ======
+    document.getElementById('resetBtn').addEventListener('click', function() {
+        if (confirm('确定要清除本地保存的所有凭证吗？清除后需要重新配置。')) {
+            Object.values(LS_KEYS).forEach(k => localStorage.removeItem(k));
+            localStorage.removeItem('nacos_access_token');
+            localStorage.removeItem('is_authenticated');
+            location.reload();
         }
     });
 </script>
-<script src="js/debug-logger.js"></script>
 </body>
 </html>

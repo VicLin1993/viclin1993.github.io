@@ -90,6 +90,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>秘密调整基地 // Nacos 控制台</title>
     <link rel="stylesheet" href="css/style.css">
+<script>
+window.handleCompareClick = function(dataId, group, namespaceId) {
+    if (window.appendDebugLog) {
+        window.appendDebugLog(`[对比调试] 开始执行对比，DataID=${dataId}, Group=${group}, Namespace=${namespaceId}`, 'info');
+    }
+    
+    // 自动填充对比表单数据
+    const targetDataId = document.getElementById('compare-data-id') || document.querySelector('[name="compareDataId"]');
+    const targetGroup = document.getElementById('compare-group') || document.querySelector('[name="compareGroup"]');
+    
+    if (targetDataId) targetDataId.value = dataId;
+    if (targetGroup) targetGroup.value = group;
+
+    // 尝试各种可能的 Tab 切换与渲染函数
+    let handled = false;
+    
+    if (typeof window.switchToCompareTab === 'function') {
+        window.switchToCompareTab(dataId, group, namespaceId);
+        handled = true;
+    } else if (typeof window.showCompare === 'function') {
+        window.showCompare(dataId, group, namespaceId);
+        handled = true;
+    } else if (typeof window.switchTab === 'function') {
+        window.switchTab('compare');
+        handled = true;
+    }
+
+    // 兜底 DOM 切换逻辑：尝试点击“对比”Tab 按钮
+    const compareTabBtn = document.querySelector('[data-tab="compare"], #tab-compare, .nav-tab-compare');
+    if (compareTabBtn) {
+        compareTabBtn.click();
+        handled = true;
+    }
+
+    if (!handled) {
+        if (window.appendDebugLog) {
+            window.appendDebugLog(`[对比错误] 未找到 Tab 切换或对比渲染函数，请检查 dashboard.html 中对比页面的函数名！`, 'error');
+        }
+    }
+};
+</script>
 </head>
 <body>
 

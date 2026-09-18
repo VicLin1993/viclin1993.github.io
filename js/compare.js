@@ -9,27 +9,47 @@ async function compareToQueryTab(dataId, group) {
     rightBody.innerHTML = '<span style="color:#00f0ff;">正在获取当前最新版本数据...</span>';
 
     const token = localStorage.getItem('nacos_access_token') || '';
+    // 规范化 Namespace (public 映射为空字符串)
+    const tenantParam = (activeNamespaceId === 'public' || !activeNamespaceId) ? '' : activeNamespaceId;
 
     try {
-        const currUrl = `${SERVER_URL}/nacos/v1/cs/configs?dataId=${encodeURIComponent(dataId)}&group=${encodeURIComponent(group)}&tenant=${encodeURIComponent(activeNamespaceId)}&accessToken=${token}`;
+        // 1. 获取当前最新版本内容
+        const currUrl = `${SERVER_URL}/nacos/v1/cs/configs?dataId=${encodeURIComponent(dataId)}&group=${encodeURIComponent(group)}&tenant=${encodeURIComponent(tenantParam)}&accessToken=${token}`;
         const currRes = await fetch(currUrl);
         const currentContent = await currRes.text();
 
-        const historyUrl = `${SERVER_URL}/nacos/v1/cs/history?search=accurate&dataId=${encodeURIComponent(dataId)}&group=${encodeURIComponent(group)}&tenant=${encodeURIComponent(activeNamespaceId)}&pageNo=1&pageSize=5&accessToken=${token}`;
+        // 2. 查询 Nacos 历史版本列表
+        const historyUrl = `${SERVER_URL}/nacos/v1/cs/history?search=accurate&dataId=${encodeURIComponent(dataId)}&group=${encodeURIComponent(group)}&tenant=${encodeURIComponent(tenantParam)}&pageNo=1&pageSize=5&accessToken=${token}`;
         const historyRes = await fetch(historyUrl);
-        const historyData = await historyRes.json();
+        const historyText = await historyRes.text();
+
+        let historyData = {};
+        try {
+            historyData = JSON.parse(historyText);
+        } catch (e) {
+            throw new Error(`Nacos 历史接口返回异常: ${historyText}`);
+        }
 
         const pageItems = historyData.pageItems || [];
 
         if (pageItems.length <= 1) {
             renderDiffViews(currentContent, currentContent);
-            document.getElementById('leftPaneTitle').innerText = `← 上一版本 (无历史纪录，与当前一致)`;
+            document.getElementById('leftPaneTitle').innerText = `← 上一版本 (无更早历史纪录，与当前一致)`;
         } else {
             const prevNid = pageItems[1].nid;
-            const prevDetailUrl = `${SERVER_URL}/nacos/v1/cs/history?dataId=${encodeURIComponent(dataId)}&group=${encodeURIComponent(group)}&tenant=${encodeURIComponent(activeNamespaceId)}&nid=${prevNid}&accessToken=${token}`;
+            // ⚠️ 必填项补充：dataId 和 group 在 2.0.3+ 是必填参数
+            const prevDetailUrl = `${SERVER_URL}/nacos/v1/cs/history?dataId=${encodeURIComponent(dataId)}&group=${encodeURIComponent(group)}&tenant=${encodeURIComponent(tenantParam)}&nid=${prevNid}&accessToken=${token}`;
             const prevRes = await fetch(prevDetailUrl);
-            const prevJson = await prevRes.json();
-            const previousContent = prevJson.content || '';
+            const prevText = await prevRes.text();
+
+            let previousContent = '';
+            try {
+                const prevJson = JSON.parse(prevText);
+                previousContent = prevJson.content || '';
+            } catch (e) {
+                // 如果返回的是纯文本内容，直接当作配置内容
+                previousContent = prevText;
+            }
 
             document.getElementById('leftPaneTitle').innerText = `← 上一版本 (${pageItems[1].lastModifiedTime || '历史改动'})`;
             renderDiffViews(previousContent, currentContent);
@@ -42,8 +62,8 @@ async function compareToQueryTab(dataId, group) {
 }
 
 function renderDiffViews(oldText, newText) {
-    const oldLines = oldText.split('\n');
-    const newLines = newText.split('\n');
+    const oldLines = (oldText || '').split('\n');
+    const newLines = (newText || '').split('\n');
 
     let leftHtml = '';
     let rightHtml = '';

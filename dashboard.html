@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>秘密调整基地 // 控制台</title>
+    <script src="js/auth.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: #0d1117; color: #c9d1d9; font-size: 14px; }
@@ -167,12 +168,6 @@
 </head>
 <body>
 
-<script>
-    if (localStorage.getItem('is_authenticated') !== 'true') {
-        window.location.href = 'index.html';
-    }
-</script>
-
 <div class="layout">
     <aside class="sidebar">
         <div class="brand">秘密调整基地</div>
@@ -313,60 +308,6 @@
 <script src="js/configs.js"></script>
 <script src="js/edit.js"></script>
 <script src="js/compare.js"></script>
-
-<script>
-    const _serverUrl = localStorage.getItem('nacos_server_url') || '';
-    localStorage.setItem('nacos_server_addr', _serverUrl);
-    const _serverDisplay = document.getElementById('currentServer');
-    if (_serverDisplay) _serverDisplay.innerText = _serverUrl || '未配置';
-
-    async function doQueryConfig() {
-        const dataId = document.getElementById('queryDataId').value.trim();
-        const group  = document.getElementById('queryGroup').value.trim() || 'DEFAULT_GROUP';
-        const statusElem = document.getElementById('queryStatusMsg');
-        const resultElem = document.getElementById('queryResultContainer');
-
-        statusElem.style.display = 'block';
-        statusElem.style.background = 'rgba(88,166,255,0.1)';
-        statusElem.style.borderColor = '#58a6ff';
-        statusElem.style.color = '#58a6ff';
-        statusElem.innerText = '查询中...';
-        resultElem.innerHTML = '';
-
-        const token = localStorage.getItem('nacos_access_token') || '';
-        const cleanUrl = _serverUrl.replace(/\/+$/, '');
-        const tenant = (typeof activeNamespaceId !== 'undefined' && activeNamespaceId && activeNamespaceId !== 'public')
-            ? activeNamespaceId : '';
-
-        try {
-            const url = `${cleanUrl}/nacos/v1/cs/configs?dataId=${encodeURIComponent(dataId)}&group=${encodeURIComponent(group)}&tenant=${encodeURIComponent(tenant)}&accessToken=${encodeURIComponent(token)}`;
-            const resp = await fetch(url);
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            const text = await resp.text();
-
-            if (!text) {
-                statusElem.style.background = 'rgba(210,153,34,0.1)';
-                statusElem.style.borderColor = '#d29922';
-                statusElem.style.color = '#d29922';
-                statusElem.innerText = '未查询到该配置';
-                return;
-            }
-
-            statusElem.style.display = 'none';
-            resultElem.innerHTML = `
-                <div style="background:#161b22;border:1px solid #30363d;border-radius:6px;overflow:hidden;">
-                    <div style="padding:10px 14px;background:#0d1117;border-bottom:1px solid #30363d;">
-                        Data ID: <b>${escapeHtml(dataId)}</b> · Group: <b>${escapeHtml(group)}</b>
-                    </div>
-                    <pre style="padding:16px;margin:0;color:#e6edf3;font-family:monospace;font-size:13px;line-height:1.5;overflow-x:auto;white-space:pre-wrap;word-break:break-all;max-height:60vh;overflow-y:auto;">${escapeHtml(text)}</pre>
-                </div>`;
-        } catch (err) {
-            statusElem.style.background = 'rgba(248,81,73,0.1)';
-            statusElem.style.borderColor = '#f85149';
-            statusElem.style.color = '#f85149';
-            statusElem.innerText = `[!] 查询失败: ${err.message}`;
-        }
-    }
-</script>
+<script src="js/dashboard-init.js"></script>
 </body>
 </html>

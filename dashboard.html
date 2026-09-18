@@ -335,6 +335,71 @@ window.populateNamespaceSelect = function(selectElem) {
 })();
 </script>
 
+
+<script>
+(function() {
+    // 重写对比函数：不跳转 Tab，原地处理
+    window.fetchHistoryAndCompare = function(dataId, group, namespaceId) {
+        if (window.appendDebugLog) {
+            window.appendDebugLog(`[原地对比触发] Namespace=${namespaceId}, Group=${group}, DataID=${dataId}`, 'info');
+        }
+
+        // 1. 查找页面上已有的对比面板/结果区域（如果存在）
+        let compareContainer = document.getElementById('in-place-compare-container');
+        
+        if (!compareContainer) {
+            // 如果不存在对比面板，动态在列表下方创建一个
+            compareContainer = document.createElement('div');
+            compareContainer.id = 'in-place-compare-container';
+            compareContainer.style.cssText = 'margin-top: 20px; padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);';
+            
+            // 找到主内容区域或表格后插入
+            const mainContent = document.querySelector('.main-content, .container, table') || document.body;
+            if (mainContent.parentNode) {
+                mainContent.parentNode.insertBefore(compareContainer, mainContent.nextSibling);
+            } else {
+                document.body.appendChild(compareContainer);
+            }
+        }
+
+        // 2. 渲染加载状态与对比基本信息
+        compareContainer.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 12px;">
+                <h4 style="margin: 0; color: #333;">📊 配置历史版本对比 (${dataId})</h4>
+                <button onclick="document.getElementById('in-place-compare-container').remove()" style="padding: 4px 10px; cursor: pointer;">关闭对比</button>
+            </div>
+            <div style="font-size: 13px; color: #666; margin-bottom: 10px;">
+                <b>Namespace:</b> ${namespaceId || 'default'} &nbsp;|&nbsp; 
+                <b>Group:</b> ${group} &nbsp;|&nbsp; 
+                <b>Data ID:</b> ${dataId}
+            </div>
+            <div id="compare-loading-text" style="color: #0066cc;">正在获取历史版本比对数据，请稍候...</div>
+            <div id="compare-diff-result" style="margin-top: 10px;"></div>
+        `;
+
+        // 滚动到对比面板
+        compareContainer.scrollIntoView({ behavior: 'smooth' });
+
+        // 3. 调用具体的对比数据获取逻辑或接口
+        if (typeof window.loadCompareData === 'function') {
+            window.loadCompareData(dataId, group, namespaceId);
+        } else if (typeof window.getHistoryList === 'function') {
+            window.getHistoryList(dataId, group, namespaceId);
+        } else {
+            setTimeout(() => {
+                const loadingText = document.getElementById('compare-loading-text');
+                if (loadingText) {
+                    loadingText.innerText = '已准备好对比上下文。请查看面板是否已准备渲染数据。';
+                }
+                if (window.appendDebugLog) {
+                    window.appendDebugLog('[对比提示] 已在当前页面生成对比面板框。', 'info');
+                }
+            }, 500);
+        }
+    };
+})();
+</script>
+
 </head>
 <body>
 

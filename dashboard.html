@@ -4,108 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>秘密调整基地 // Nacos 控制台</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background-color: #0d1117; color: #00f0ff; height: 100vh; display: flex; overflow: hidden; }
-
-        /* 左侧侧边栏 */
-        aside { width: 220px; background: rgba(13, 22, 33, 0.95); border-right: 1px solid rgba(0, 240, 255, 0.2); display: flex; flex-direction: column; justify-content: space-between; padding: 20px 0; flex-shrink: 0; }
-        .sidebar-brand { padding: 0 20px 20px; border-bottom: 1px solid rgba(0, 240, 255, 0.15); margin-bottom: 15px; }
-        .sidebar-brand h2 { font-size: 16px; color: #00ff88; }
-        .sidebar-brand p { font-size: 11px; color: #58a6ff; margin-top: 4px; }
-
-        .nav-list { list-style: none; }
-        .nav-item { padding: 12px 20px; font-size: 14px; color: #8b949e; cursor: pointer; border-left: 3px solid transparent; transition: all 0.2s; display: flex; align-items: center; gap: 10px; }
-        .nav-item:hover { color: #00f0ff; background: rgba(0, 240, 255, 0.05); }
-        .nav-item.active { color: #00ff88; background: rgba(0, 255, 136, 0.1); border-left-color: #00ff88; font-weight: bold; }
-
-        .sidebar-footer { padding: 0 20px; }
-        .btn-logout { width: 100%; background: transparent; border: 1px solid #ff5555; color: #ff5555; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 13px; transition: all 0.2s; }
-        .btn-logout:hover { background: #ff5555; color: #ffffff; }
-
-        /* 右侧主视窗 */
-        main { flex: 1; display: flex; flex-direction: column; background-color: #0d1117; overflow: hidden; position: relative; }
-
-        .view-section { display: none; height: 100%; flex-direction: column; padding: 24px; overflow-y: auto; }
-        .view-section.active { display: flex; }
-
-        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(0, 240, 255, 0.15); padding-bottom: 12px; }
-        .section-title { font-size: 18px; color: #00ff88; display: flex; align-items: center; gap: 10px; }
-
-        /* 筛选面板 */
-        .filter-panel { background: rgba(13, 22, 33, 0.6); border: 1px solid rgba(0, 240, 255, 0.25); border-radius: 6px; padding: 16px; margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
-        .filter-item { display: flex; align-items: center; gap: 8px; }
-        .filter-item label { font-size: 13px; color: #58a6ff; white-space: nowrap; }
-        .filter-input { background: rgba(0,0,0,0.5); border: 1px solid rgba(0, 240, 255, 0.4); color: #00ff88; padding: 8px 12px; border-radius: 4px; outline: none; width: 220px; font-size: 13px; }
-        .filter-input:focus { border-color: #00ff88; box-shadow: 0 0 8px rgba(0, 255, 136, 0.2); }
-
-        .btn-search { background: #00ff88; color: #0d1117; font-weight: bold; border: none; padding: 8px 16px; font-size: 13px; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
-        .btn-search:hover { background: #00f0ff; box-shadow: 0 0 10px rgba(0, 240, 255, 0.4); }
-        .btn-reset { background: transparent; border: 1px solid rgba(0, 240, 255, 0.4); color: #00f0ff; padding: 8px 14px; font-size: 13px; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
-        .btn-reset:hover { border-color: #00ff88; color: #00ff88; }
-
-        .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 12px; }
-        .search-box { background: rgba(0,0,0,0.4); border: 1px solid rgba(0, 240, 255, 0.4); color: #00ff88; padding: 8px 12px; border-radius: 4px; outline: none; width: 280px; font-size: 13px; }
-
-        /* Namespace 网格 */
-        .namespace-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 10px; margin-bottom: 20px; }
-        @media (max-width: 1700px) { .namespace-grid { grid-template-columns: repeat(5, 1fr); } }
-        @media (max-width: 1000px) { .namespace-grid { grid-template-columns: repeat(2, 1fr); } }
-
-        .ns-card { background: rgba(13, 22, 33, 0.7); border: 1px solid rgba(0, 240, 255, 0.3); border-radius: 4px; padding: 10px 8px; cursor: pointer; text-align: center; word-break: break-all; transition: all 0.2s; }
-        .ns-card:hover { border-color: #00ff88; background: rgba(0, 255, 136, 0.15); box-shadow: 0 0 12px rgba(0, 255, 136, 0.5); }
-        .ns-name { font-size: 12px; font-weight: bold; color: #00ff88; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .ns-id { font-size: 10px; color: #8b949e; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .ns-desc { font-size: 10px; color: #58a6ff; margin-top: 4px; }
-        .ns-badge { font-size: 9px; color: #00f0ff; margin-top: 2px; }
-
-        /* 表格样式 */
-        .nacos-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; text-align: left; }
-        .nacos-table th { background: rgba(0, 240, 255, 0.1); color: #00ff88; border-bottom: 1px solid rgba(0, 240, 255, 0.3); padding: 12px; font-weight: 600; }
-        .nacos-table td { border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding: 12px; color: #c9d1d9; }
-        .nacos-table tr:hover { background: rgba(0, 240, 255, 0.03); }
-        
-        .btn-edit { background: transparent; border: 1px solid #00f0ff; color: #00f0ff; padding: 4px 10px; font-size: 12px; border-radius: 3px; cursor: pointer; margin-right: 6px; }
-        .btn-edit:hover { background: #00f0ff; color: #0d1117; }
-        .btn-compare { background: transparent; border: 1px solid #00ff88; color: #00ff88; padding: 4px 10px; font-size: 12px; border-radius: 3px; cursor: pointer; }
-        .btn-compare:hover { background: #00ff88; color: #0d1117; }
-        .btn-back { background: transparent; border: 1px solid #58a6ff; color: #58a6ff; padding: 4px 12px; font-size: 12px; border-radius: 3px; cursor: pointer; }
-        .btn-back:hover { background: rgba(88, 166, 255, 0.2); }
-
-        /* 左右分屏 Diff 视图样式 */
-        .diff-container { display: flex; gap: 16px; flex: 1; height: calc(100vh - 200px); }
-        .diff-pane { flex: 1; background: #011627; border: 1px solid rgba(0, 240, 255, 0.3); border-radius: 6px; display: flex; flex-direction: column; overflow: hidden; }
-        .diff-pane-header { background: rgba(13, 22, 33, 0.9); padding: 10px 16px; border-bottom: 1px solid rgba(0, 240, 255, 0.2); font-size: 13px; font-weight: bold; }
-        .diff-pane-left .diff-pane-header { color: #ff5555; }
-        .diff-pane-right .diff-pane-header { color: #00ff88; }
-        .diff-body { flex: 1; padding: 14px; font-family: monospace; font-size: 13px; line-height: 1.6; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
-
-        /* Diff 颜色标记 */
-        .line-del { background: rgba(255, 85, 85, 0.2); color: #ff8888; display: block; border-left: 3px solid #ff5555; padding-left: 6px; }
-        .line-add { background: rgba(0, 255, 136, 0.2); color: #88ffbb; display: block; border-left: 3px solid #00ff88; padding-left: 6px; }
-        .line-same { color: #8b949e; display: block; padding-left: 9px; }
-
-        /* 弹出编辑 Modal */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.75); display: none; justify-content: center; align-items: center; z-index: 1000; }
-        .modal-overlay.active { display: flex; }
-        .modal-content { background: #0d1117; border: 1px solid #00f0ff; border-radius: 6px; width: 80%; max-width: 900px; height: 80vh; display: flex; flex-direction: column; padding: 24px; box-shadow: 0 0 25px rgba(0, 240, 255, 0.3); }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(0, 240, 255, 0.2); padding-bottom: 12px; }
-        .modal-title { font-size: 16px; color: #00ff88; }
-        .code-textarea { flex: 1; background: #011627; border: 1px solid rgba(0, 240, 255, 0.3); color: #d6deeb; font-family: monospace; font-size: 13px; padding: 14px; border-radius: 4px; outline: none; resize: none; margin-bottom: 16px; line-height: 1.5; }
-        .modal-footer { display: flex; justify-content: flex-end; gap: 12px; }
-
-        /* 分页 */
-        .pagination-container { margin-top: auto; padding-top: 16px; border-top: 1px solid rgba(0, 240, 255, 0.15); display: flex; justify-content: space-between; align-items: center; }
-        .pagination-info { font-size: 13px; color: #58a6ff; }
-        .pagination-controls { display: flex; align-items: center; gap: 6px; }
-        .page-btn { background: rgba(13, 22, 33, 0.8); border: 1px solid rgba(0, 240, 255, 0.3); color: #00f0ff; padding: 4px 10px; font-size: 12px; border-radius: 3px; cursor: pointer; transition: all 0.2s; }
-        .page-btn:hover:not(:disabled) { border-color: #00ff88; color: #00ff88; background: rgba(0, 255, 136, 0.1); }
-        .page-btn.active { background: #00ff88; color: #0d1117; border-color: #00ff88; font-weight: bold; }
-        .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-
-        .status-msg { font-size: 13px; color: #ff5555; background: rgba(255,85,85,0.1); border: 1px solid rgba(255,85,85,0.3); padding: 10px; border-radius: 4px; margin-bottom: 12px; display: none; }
-        .placeholder-box { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #8b949e; font-size: 15px; border: 1px dashed rgba(0, 240, 255, 0.2); border-radius: 6px; }
-    </style>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
@@ -135,7 +34,7 @@
 
     <!-- 右侧内容视窗 -->
     <main>
-        <!-- 视窗 1：概览（命名空间列表） -->
+        <!-- 视窗 1：概览 -->
         <section id="view-overview" class="view-section active">
             <div class="section-header">
                 <div class="section-title">> 命名空间概览</div>
@@ -150,7 +49,6 @@
             <div id="statusMsg" class="status-msg"></div>
             <div id="namespaceContainer" class="namespace-grid"></div>
 
-            <!-- 右下角分页 -->
             <div class="pagination-container">
                 <div class="pagination-info">
                     每页 100 条 | 页数：<span id="pageCurrentText">1</span> / <span id="pageTotalText">1</span>
@@ -159,7 +57,7 @@
             </div>
         </section>
 
-        <!-- 视窗 1-Detail：指定 Namespace 的配置详情列表 -->
+        <!-- 视窗 1-Detail：配置详情 -->
         <section id="view-configs" class="view-section">
             <div class="section-header">
                 <div class="section-title">
@@ -169,7 +67,6 @@
                 <button class="page-btn" onclick="loadConfigsOfNamespace(activeNamespaceId)">刷新列表</button>
             </div>
 
-            <!-- 筛选面板 -->
             <div class="filter-panel">
                 <div class="filter-item">
                     <label for="filterDataId">Data ID:</label>
@@ -195,13 +92,11 @@
                         <th>操作</th>
                     </tr>
                 </thead>
-                <tbody id="configTableBody">
-                    <!-- 动态填入 Nacos 配置数据 -->
-                </tbody>
+                <tbody id="configTableBody"></tbody>
             </table>
         </section>
 
-        <!-- 视窗 2：版本对比与查询 -->
+        <!-- 视窗 2：版本对比 -->
         <section id="view-search" class="view-section">
             <div class="section-header">
                 <div class="section-title">
@@ -210,13 +105,10 @@
             </div>
 
             <div id="diffContainer" class="diff-container">
-                <!-- 左半部：上一版本 -->
                 <div class="diff-pane diff-pane-left">
                     <div class="diff-pane-header" id="leftPaneTitle">← 上一版本 (Older Version)</div>
                     <div class="diff-body" id="leftDiffBody">等待选择对比目标...</div>
                 </div>
-
-                <!-- 右半部：当前版本 -->
                 <div class="diff-pane diff-pane-right">
                     <div class="diff-pane-header" id="rightPaneTitle">→ 当前最新版本 (Current Version)</div>
                     <div class="diff-body" id="rightDiffBody">等待选择对比目标...</div>
@@ -235,7 +127,7 @@
         </section>
     </main>
 
-    <!-- 编辑配置 Modal 弹窗 -->
+    <!-- Modal 弹窗 -->
     <div id="editModal" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
@@ -250,421 +142,11 @@
         </div>
     </div>
 
-<script>
-    const SERVER_URL = 'https://nacos.wayturnlive.com';
-    const PAGE_SIZE = 100;
-
-    let rawNamespaceList = [];      
-    let filteredNamespaceList = []; 
-    let currentPage = 1;            
-    let activeNamespaceId = '';     
-
-    let rawConfigList = [];
-    let filteredConfigList = [];
-
-    let currentEditDataId = '';
-    let currentEditGroup = '';
-
-    window.addEventListener('DOMContentLoaded', () => {
-        if (localStorage.getItem('is_authenticated') !== 'true') {
-            window.location.href = 'index.html';
-            return;
-        }
-        fetchNamespaces();
-    });
-
-    function switchTab(tabKey) {
-        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-
-        if (tabKey === 'overview') {
-            document.querySelectorAll('.nav-item')[0].classList.add('active');
-            document.getElementById('view-overview').classList.add('active');
-        } else if (tabKey === 'search') {
-            document.querySelectorAll('.nav-item')[1].classList.add('active');
-            document.getElementById('view-search').classList.add('active');
-        } else if (tabKey === 'edit') {
-            document.querySelectorAll('.nav-item')[2].classList.add('active');
-            document.getElementById('view-edit').classList.add('active');
-        }
-    }
-
-    async function fetchNamespaces() {
-        const container = document.getElementById('namespaceContainer');
-        const statusMsg = document.getElementById('statusMsg');
-        
-        container.innerHTML = '<div style="color: #00f0ff; font-size: 13px; grid-column: span 10;">正在读取 Nacos 命名空间...</div>';
-        statusMsg.style.display = 'none';
-
-        const token = localStorage.getItem('nacos_access_token') || '';
-
-        try {
-            const response = await fetch(`${SERVER_URL}/nacos/v1/console/namespaces?accessToken=${token}`);
-            const resData = await response.json();
-
-            if (resData.code === 403 || resData.code === 401 || (resData.message && resData.message.toLowerCase().includes('token'))) {
-                container.innerHTML = '';
-                showError(`[!] 凭证已过期，即将重新登录...`);
-                setTimeout(logout, 2000);
-                return;
-            }
-
-            if (Array.isArray(resData)) {
-                rawNamespaceList = resData;
-            } else if (resData && Array.isArray(resData.data)) {
-                rawNamespaceList = resData.data;
-            } else {
-                rawNamespaceList = [];
-            }
-
-            filteredNamespaceList = [...rawNamespaceList];
-            document.getElementById('nsTotalCount').innerText = filteredNamespaceList.length;
-            
-            currentPage = 1;
-            renderCurrentPage();
-
-        } catch (err) {
-            container.innerHTML = '';
-            showError(`[!] 读取失败: ${err.message}`);
-        }
-    }
-
-    function renderCurrentPage() {
-        const container = document.getElementById('namespaceContainer');
-        container.innerHTML = '';
-
-        const totalItems = filteredNamespaceList.length;
-        const totalPages = Math.ceil(totalItems / PAGE_SIZE) || 1;
-
-        if (currentPage > totalPages) currentPage = totalPages;
-        if (currentPage < 1) currentPage = 1;
-
-        const startIdx = (currentPage - 1) * PAGE_SIZE;
-        const pageItems = filteredNamespaceList.slice(startIdx, startIdx + PAGE_SIZE);
-
-        if (pageItems.length === 0) {
-            container.innerHTML = '<div style="color: #8b949e; grid-column: span 10; text-align: center; padding: 40px;">无符合条件的命名空间</div>';
-        } else {
-            pageItems.forEach((item) => {
-                const card = document.createElement('div');
-                card.className = 'ns-card';
-
-                const nsName = item.namespaceShowName || (item.namespace === "" ? "public" : item.namespace);
-                const nsId = item.namespace === "" ? "public (默认)" : item.namespace;
-                const desc = item.namespaceDesc || '';
-                const configCount = item.configCount !== undefined ? `${item.configCount} 项配置` : '';
-
-                card.innerHTML = `
-                    <div class="ns-name">${nsName}</div>
-                    <div class="ns-id">${nsId}</div>
-                    ${desc ? `<div class="ns-desc">${desc}</div>` : ''}
-                    ${configCount ? `<div class="ns-badge">${configCount}</div>` : ''}
-                `;
-
-                card.onclick = () => {
-                    loadConfigsOfNamespace(item.namespace, nsName);
-                };
-
-                container.appendChild(card);
-            });
-        }
-
-        document.getElementById('pageCurrentText').innerText = currentPage;
-        document.getElementById('pageTotalText').innerText = totalPages;
-
-        renderPaginationControls(totalPages);
-    }
-
-    async function loadConfigsOfNamespace(namespaceId, namespaceName) {
-        activeNamespaceId = namespaceId;
-        document.getElementById('currentNsTitle').innerText = namespaceName || namespaceId || 'public';
-        
-        document.getElementById('filterDataId').value = '';
-        document.getElementById('filterGroup').value = '';
-        
-        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-        document.getElementById('view-configs').classList.add('active');
-
-        const tableBody = document.getElementById('configTableBody');
-        const statusMsg = document.getElementById('configStatusMsg');
-        tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#00f0ff;">正在拉取 Nacos 配置数据...</td></tr>';
-        statusMsg.style.display = 'none';
-
-        const token = localStorage.getItem('nacos_access_token') || '';
-
-        try {
-            const url = `${SERVER_URL}/nacos/v1/cs/configs?dataId=&group=&appName=&config_tags=&pageNo=1&pageSize=500&tenant=${namespaceId}&search=accurate&accessToken=${token}`;
-            const response = await fetch(url);
-            const resData = await response.json();
-
-            rawConfigList = resData.pageItems || [];
-            filteredConfigList = [...rawConfigList];
-
-            renderConfigTable(filteredConfigList);
-
-        } catch (err) {
-            tableBody.innerHTML = '';
-            statusMsg.innerText = `[!] 配置加载失败: ${err.message}`;
-            statusMsg.style.display = 'block';
-        }
-    }
-
-    function renderConfigTable(list) {
-        const tableBody = document.getElementById('configTableBody');
-        tableBody.innerHTML = '';
-
-        document.getElementById('configFilteredCount').innerText = list.length;
-
-        if (!list || list.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#8b949e; padding:30px;">无符合条件的配置数据</td></tr>';
-            return;
-        }
-
-        list.forEach(config => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td style="color:#00ff88; font-weight:bold;">${config.dataId}</td>
-                <td><span style="background:rgba(0,240,255,0.1); padding:2px 8px; border-radius:3px; color:#00f0ff;">${config.group}</span></td>
-                <td style="color:#8b949e;">${config.appName || '-'}</td>
-                <td>
-                    <button class="btn-edit" onclick="openEditModal('${config.dataId}', '${config.group}')">编辑</button>
-                    <button class="btn-compare" onclick="compareToQueryTab('${config.dataId}', '${config.group}')">对比</button>
-                </td>
-            `;
-            tableBody.appendChild(tr);
-        });
-    }
-
-    function applyCombinedFilter() {
-        const queryDataId = document.getElementById('filterDataId').value.trim().toLowerCase();
-        const queryGroup = document.getElementById('filterGroup').value.trim().toLowerCase();
-
-        filteredConfigList = rawConfigList.filter(item => {
-            const dataId = (item.dataId || '').toLowerCase();
-            const group = (item.group || '').toLowerCase();
-
-            const matchDataId = !queryDataId || dataId.includes(queryDataId);
-            const matchGroup = !queryGroup || group.includes(queryGroup);
-
-            return matchDataId && matchGroup;
-        });
-
-        renderConfigTable(filteredConfigList);
-    }
-
-    function resetConfigFilter() {
-        document.getElementById('filterDataId').value = '';
-        document.getElementById('filterGroup').value = '';
-        filteredConfigList = [...rawConfigList];
-        renderConfigTable(filteredConfigList);
-    }
-
-    // 点击“对比”：跳转至“2. 查询”分页并展示版本 Side-by-Side 差异
-    async function compareToQueryTab(dataId, group) {
-        switchTab('search');
-        document.getElementById('compareTargetText').innerText = `${dataId} (${group})`;
-
-        const leftBody = document.getElementById('leftDiffBody');
-        const rightBody = document.getElementById('rightDiffBody');
-        
-        leftBody.innerHTML = '<span style="color:#00f0ff;">正在获取上一版本数据...</span>';
-        rightBody.innerHTML = '<span style="color:#00f0ff;">正在获取当前最新版本数据...</span>';
-
-        const token = localStorage.getItem('nacos_access_token') || '';
-
-        try {
-            // 1. 获取当前最新版本内容
-            const currUrl = `${SERVER_URL}/nacos/v1/cs/configs?dataId=${encodeURIComponent(dataId)}&group=${encodeURIComponent(group)}&tenant=${encodeURIComponent(activeNamespaceId)}&accessToken=${token}`;
-            const currRes = await fetch(currUrl);
-            const currentContent = await currRes.text();
-
-            // 2. 查询 Nacos 历史版本列表
-            const historyUrl = `${SERVER_URL}/nacos/v1/cs/history?search=accurate&dataId=${encodeURIComponent(dataId)}&group=${encodeURIComponent(group)}&tenant=${encodeURIComponent(activeNamespaceId)}&pageNo=1&pageSize=5&accessToken=${token}`;
-            const historyRes = await fetch(historyUrl);
-            const historyData = await historyRes.json();
-
-            const pageItems = historyData.pageItems || [];
-
-            if (pageItems.length <= 1) {
-                renderDiffViews(currentContent, currentContent);
-                document.getElementById('leftPaneTitle').innerText = `← 上一版本 (无历史纪录，与当前一致)`;
-            } else {
-                const prevNid = pageItems[1].nid;
-                const prevDetailUrl = `${SERVER_URL}/nacos/v1/cs/history?dataId=${encodeURIComponent(dataId)}&group=${encodeURIComponent(group)}&tenant=${encodeURIComponent(activeNamespaceId)}&nid=${prevNid}&accessToken=${token}`;
-                const prevRes = await fetch(prevDetailUrl);
-                const prevJson = await prevRes.json();
-                const previousContent = prevJson.content || '';
-
-                document.getElementById('leftPaneTitle').innerText = `← 上一版本 (${pageItems[1].lastModifiedTime || '历史改动'})`;
-                renderDiffViews(previousContent, currentContent);
-            }
-
-        } catch (err) {
-            leftBody.innerHTML = `<span style="color:#ff5555;">[!] 获取对比数据失败: ${err.message}</span>`;
-            rightBody.innerHTML = `<span style="color:#ff5555;">[!] 获取对比数据失败: ${err.message}</span>`;
-        }
-    }
-
-    function renderDiffViews(oldText, newText) {
-        const oldLines = oldText.split('\n');
-        const newLines = newText.split('\n');
-
-        let leftHtml = '';
-        let rightHtml = '';
-
-        const maxLines = Math.max(oldLines.length, newLines.length);
-
-        for (let i = 0; i < maxLines; i++) {
-            const lineOld = oldLines[i];
-            const lineNew = newLines[i];
-
-            if (lineOld === lineNew) {
-                leftHtml += `<span class="line-same">${escapeHtml(lineOld || '')}</span>`;
-                rightHtml += `<span class="line-same">${escapeHtml(lineNew || '')}</span>`;
-            } else {
-                if (lineOld !== undefined) {
-                    leftHtml += `<span class="line-del">- ${escapeHtml(lineOld)}</span>`;
-                } else {
-                    leftHtml += `<span class="line-same"></span>`;
-                }
-
-                if (lineNew !== undefined) {
-                    rightHtml += `<span class="line-add">+ ${escapeHtml(lineNew)}</span>`;
-                } else {
-                    rightHtml += `<span class="line-same"></span>`;
-                }
-            }
-        }
-
-        document.getElementById('leftDiffBody').innerHTML = leftHtml || '<span style="color:#8b949e;">(空)</span>';
-        document.getElementById('rightDiffBody').innerHTML = rightHtml || '<span style="color:#8b949e;">(空)</span>';
-    }
-
-    function escapeHtml(text) {
-        return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    }
-
-    async function openEditModal(dataId, group) {
-        currentEditDataId = dataId;
-        currentEditGroup = group;
-
-        document.getElementById('modalDataId').innerText = `${dataId} (${group})`;
-        const textarea = document.getElementById('configContentArea');
-        textarea.value = '正在读取服务器配置数据...';
-        document.getElementById('editModal').classList.add('active');
-
-        const token = localStorage.getItem('nacos_access_token') || '';
-
-        try {
-            const url = `${SERVER_URL}/nacos/v1/cs/configs?dataId=${encodeURIComponent(dataId)}&group=${encodeURIComponent(group)}&tenant=${encodeURIComponent(activeNamespaceId)}&accessToken=${token}`;
-            const response = await fetch(url);
-            const contentText = await response.text();
-            
-            textarea.value = contentText;
-        } catch (err) {
-            textarea.value = `[!] 获取内容失败: ${err.message}`;
-        }
-    }
-
-    async function saveConfigToServer() {
-        const content = document.getElementById('configContentArea').value;
-        const token = localStorage.getItem('nacos_access_token') || '';
-
-        try {
-            const response = await fetch(`${SERVER_URL}/nacos/v1/cs/configs`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({
-                    dataId: currentEditDataId,
-                    group: currentEditGroup,
-                    tenant: activeNamespaceId,
-                    content: content,
-                    accessToken: token
-                })
-            });
-
-            const resultText = await response.text();
-
-            if (response.ok && (resultText === 'true' || resultText.includes('true'))) {
-                alert('✓ 配置已成功同步更新至 Nacos 服务器！');
-                closeEditModal();
-            } else {
-                alert(`[!] 保存失败: ${resultText}`);
-            }
-        } catch (err) {
-            alert(`[!] 更新异常: ${err.message}`);
-        }
-    }
-
-    function closeEditModal() {
-        document.getElementById('editModal').classList.remove('active');
-    }
-
-    function renderPaginationControls(totalPages) {
-        const controls = document.getElementById('paginationControls');
-        controls.innerHTML = '';
-
-        if (totalPages <= 1) return;
-
-        const firstBtn = document.createElement('button');
-        firstBtn.className = 'page-btn';
-        firstBtn.innerText = '<<';
-        firstBtn.disabled = currentPage === 1;
-        firstBtn.onclick = () => goToPage(1);
-        controls.appendChild(firstBtn);
-
-        let startPage = Math.max(1, currentPage - 2);
-        let endPage = Math.min(totalPages, startPage + 4);
-        if (endPage - startPage < 4) {
-            startPage = Math.max(1, endPage - 4);
-        }
-
-        for (let i = startPage; i <= endPage; i++) {
-            const pageBtn = document.createElement('button');
-            pageBtn.className = `page-btn ${i === currentPage ? 'active' : ''}`;
-            pageBtn.innerText = i;
-            pageBtn.onclick = () => goToPage(i);
-            controls.appendChild(pageBtn);
-        }
-
-        const lastBtn = document.createElement('button');
-        lastBtn.className = 'page-btn';
-        lastBtn.innerText = '>>';
-        lastBtn.disabled = currentPage === totalPages;
-        lastBtn.onclick = () => goToPage(totalPages);
-        controls.appendChild(lastBtn);
-    }
-
-    function goToPage(page) {
-        currentPage = page;
-        renderCurrentPage();
-    }
-
-    function onSearchInput() {
-        const query = document.getElementById('searchInput').value.toLowerCase();
-        filteredNamespaceList = rawNamespaceList.filter(item => {
-            const name = (item.namespaceShowName || '').toLowerCase();
-            const id = (item.namespace || '').toLowerCase();
-            const desc = (item.namespaceDesc || '').toLowerCase();
-            return name.includes(query) || id.includes(query) || desc.includes(query);
-        });
-        document.getElementById('nsTotalCount').innerText = filteredNamespaceList.length;
-        currentPage = 1;
-        renderCurrentPage();
-    }
-
-    function showError(msg) {
-        const statusMsg = document.getElementById('statusMsg');
-        statusMsg.innerText = msg;
-        statusMsg.style.display = 'block';
-    }
-
-    function logout() {
-        localStorage.removeItem('is_authenticated');
-        localStorage.removeItem('nacos_access_token');
-        window.location.href = 'index.html';
-    }
-</script>
-
+    <!-- 模块化引入 JS -->
+    <script src="js/app.js"></script>
+    <script src="js/overview.js"></script>
+    <script src="js/configs.js"></script>
+    <script src="js/compare.js"></script>
+    <script src="js/edit.js"></script>
 </body>
 </html>

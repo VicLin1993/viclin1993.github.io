@@ -2,7 +2,7 @@
  * ========================================================
  * 模块：js/compare.js
  * 职责：处理配置文件的 Side-by-Side 独立对比弹窗 (Modal)
- * 特性：严格校验 NID 与 Tenant 参数，防止 undefined 导致 Nacos 后端报错
+ * 特性：时间格式统一归一化为 YYYY/M/D HH:mm:ss (+8时区)
  * ========================================================
  */
 
@@ -12,12 +12,41 @@ let currentCompareDataId = '';
 let currentCompareGroup = '';
 let currentCompareTenant = '';
 
+// 统一格式化时间为: YYYY/M/D HH:mm:ss (+8 时区)
+function formatToUTC8Time(timeInput) {
+    if (!timeInput) return '未知时间';
+    
+    let date;
+    if (typeof timeInput === 'number' || !isNaN(Number(timeInput))) {
+        date = new Date(Number(timeInput));
+    } else {
+        // 自动解析如 2026-09-10T18:42:25.731+08:00 或普通字符串
+        date = new Date(timeInput);
+    }
+
+    if (isNaN(date.getTime())) {
+        return timeInput; // 如果无法解析成 Date，则直接原样展示
+    }
+
+    // 转为 +8 时区的时间
+    const utcTime = date.getTime() + (date.getTimezoneOffset() * 60000);
+    const targetDate = new Date(utcTime + (3600000 * 8));
+
+    const year = targetDate.getFullYear();
+    const month = targetDate.getMonth() + 1;
+    const day = targetDate.getDate();
+    const hours = String(targetDate.getHours()).padStart(2, '0');
+    const minutes = String(targetDate.getMinutes()).padStart(2, '0');
+    const seconds = String(targetDate.getSeconds()).padStart(2, '0');
+
+    return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+}
+
 // 打开独立对比 Modal 弹窗
 async function compareToQueryTab(dataId, group) {
     currentCompareDataId = dataId || '';
     currentCompareGroup = group || 'DEFAULT_GROUP';
     
-    // 规范化 Tenant：如果是 public 或无值，则留空字符串
     if (!activeNamespaceId || activeNamespaceId === 'public' || activeNamespaceId === 'undefined') {
         currentCompareTenant = '';
     } else {
@@ -46,7 +75,6 @@ async function fetchHistoryAndCompare() {
     const statusMsg = document.getElementById('compareStatusMsg');
 
     try {
-        // 1. 获取 Nacos 历史改动版本
         const historyUrl = `${SERVER_URL}/nacos/v1/cs/history?search=accurate&dataId=${encodeURIComponent(currentCompareDataId)}&group=${encodeURIComponent(currentCompareGroup)}&tenant=${encodeURIComponent(currentCompareTenant)}&pageNo=1&pageSize=20&accessToken=${token}`;
         const historyRes = await fetch(historyUrl);
         const historyText = await historyRes.text();
@@ -61,7 +89,6 @@ async function fetchHistoryAndCompare() {
         historyListCache = historyData.pageItems || [];
         historyDetailMap = {};
 
-        // 2. 获取当前最新实时的配置内容作为【当前最新】
         const currUrl = `${SERVER_URL}/nacos/v1/cs/configs?dataId=${encodeURIComponent(currentCompareDataId)}&group=${encodeURIComponent(currentCompareGroup)}&tenant=${encodeURIComponent(currentCompareTenant)}&accessToken=${token}`;
         const currRes = await fetch(currUrl);
         const currentContent = await currRes.text();
@@ -71,7 +98,6 @@ async function fetchHistoryAndCompare() {
             time: '当前最新状态'
         };
 
-        // 3. 渲染版本下拉框
         populateVersionSelects();
 
     } catch (err) {
@@ -102,9 +128,12 @@ function populateVersionSelects() {
         leftSelect.appendChild(noHistOpt);
     } else {
         historyListCache.forEach((item, index) => {
-            if (!item || item.nid === undefined || item.nid === null) return; // 过滤无 nid 的无效项
+            if (!item || item.nid === undefined || item.nid === null) return;
 
-            const timeStr = item.lastModifiedTime || '未知时间';
+            // 格式化时间为 2026/9/11 14:02:36 格式
+            const rawTime = item.lastModifiedTime || item.createdTime;
+            const timeStr = formatToUTC8Time(rawTime);
+
             const optText = `[版本 #${index + 1}] 修改时间: ${timeStr} (${item.opType || 'UPDATE'})`;
 
             const optLeft = document.createElement('option');
@@ -149,7 +178,7 @@ async function triggerDiffRender() {
     renderDiffViews(leftContent.text, rightContent.text);
 }
 
-// 严格校验 NID 并安全拉取文本，防止 "undefined" 传入 API
+// 严格校验 NID 并安全拉取文本
 async function fetchContentByNid(nid, token) {
     if (!nid || nid === 'current' || nid === 'undefined') {
         return historyDetailMap['current'] || { text: '', time: '当前最新状态' };
@@ -160,7 +189,8 @@ async function fetchContentByNid(nid, token) {
     }
 
     const item = historyListCache.find(i => String(i.nid) === String(nid));
-    const timeInfo = item ? `修改时间: ${item.lastModifiedTime}` : `版本 NID: ${nid}`;
+    const rawTime = item ? (item.lastModifiedTime || item.createdTime) : '';
+    const timeInfo = item ? `修改时间: ${formatToUTC8Time(rawTime)}` : `版本 NID: ${nid}`;
 
     try {
         const detailUrl = `${SERVER_URL}/nacos/v1/cs/history?dataId=${encodeURIComponent(currentCompareDataId)}&group=${encodeURIComponent(currentCompareGroup)}&tenant=${encodeURIComponent(currentCompareTenant)}&nid=${encodeURIComponent(nid)}&accessToken=${token}`;
@@ -169,7 +199,6 @@ async function fetchContentByNid(nid, token) {
 
         let content = text;
         
-        // 如果服务器返回了标准的历史 JSON 包，提取里面的 content 字段
         if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
             try {
                 const json = JSON.parse(text);
@@ -179,7 +208,6 @@ async function fetchContentByNid(nid, token) {
             }
         }
 
-        // 防御性拦截 Nacos 返回的错误日志
         if (content.includes('caused:') || content.includes('NumberFormatException')) {
             content = `[!] 该历史记录版本内容获取失败 (服务端响应格式错误)`;
         }

@@ -11,10 +11,10 @@
         header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0, 240, 255, 0.3); padding-bottom: 16px; margin-bottom: 24px; }
         header h1 { font-size: 20px; color: #00ff88; }
         
-        .server-config { display: flex; align-items: center; gap: 12px; background: rgba(13, 22, 33, 0.8); border: 1px solid rgba(0, 240, 255, 0.3); padding: 8px 14px; border-radius: 4px; }
-        .server-config input { background: transparent; border: none; color: #00ff88; outline: none; font-size: 13px; width: 180px; }
-        .btn-action { background: transparent; border: 1px solid #00f0ff; color: #00f0ff; padding: 6px 12px; font-size: 13px; cursor: pointer; border-radius: 3px; }
+        .btn-action { background: transparent; border: 1px solid #00f0ff; color: #00f0ff; padding: 6px 14px; font-size: 13px; cursor: pointer; border-radius: 3px; }
         .btn-action:hover { background: #00f0ff; color: #0d1117; }
+        .btn-logout { border-color: #ff5555; color: #ff5555; }
+        .btn-logout:hover { background: #ff5555; color: #ffffff; }
         
         .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
         .search-box { background: rgba(0,0,0,0.4); border: 1px solid rgba(0, 240, 255, 0.4); color: #00ff88; padding: 8px 12px; border-radius: 4px; outline: none; width: 260px; font-size: 13px; }
@@ -39,11 +39,9 @@
 
 <header>
     <h1>秘密調整基地 // NACOS 控制台</h1>
-    <div class="server-config">
-        <label style="font-size: 13px;">伺服器：</label>
-        <input type="text" id="nacosServer" value="http://8.210.71.38:8848">
-        <button class="btn-action" onclick="fetchNamespaces()">刷新</button>
-        <button class="btn-action" style="border-color: #ff5555; color: #ff5555;" onclick="logout()">退出</button>
+    <div>
+        <button class="btn-action" onclick="fetchNamespaces()">刷新資料</button>
+        <button class="btn-action btn-logout" onclick="logout()">退出</button>
     </div>
 </header>
 
@@ -58,6 +56,7 @@
 </main>
 
 <script>
+    const DEFAULT_SERVER = 'http://8.210.71.38:8848';
     let globalNamespaceList = [];
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -65,19 +64,15 @@
             window.location.href = 'index.html';
             return;
         }
-
-        const savedServer = localStorage.getItem('nacos_server_url') || 'http://8.210.71.38:8848';
-        document.getElementById('nacosServer').value = savedServer;
         fetchNamespaces();
     });
 
     async function fetchNamespaces() {
-        const serverUrl = document.getElementById('nacosServer').value.replace(/\/$/, '');
-        localStorage.setItem('nacos_server_url', serverUrl);
+        const serverUrl = (localStorage.getItem('nacos_server_url') || DEFAULT_SERVER).replace(/\/$/, '');
         const container = document.getElementById('namespaceContainer');
         const statusMsg = document.getElementById('statusMsg');
         
-        container.innerHTML = '<div style="color: #00f0ff; font-size: 13px;">正在讀取 Nacos 100+ 命名空間...</div>';
+        container.innerHTML = '<div style="color: #00f0ff; font-size: 13px; grid-column: span 10;">正在讀取 Nacos 命名空間...</div>';
         statusMsg.innerText = '';
 
         const token = localStorage.getItem('nacos_access_token') || '';
@@ -87,11 +82,21 @@
         try {
             const response = await fetch(proxyUrl);
             const resData = await response.json();
-            
-            // 兼容直接回傳陣列或包裝在 data 內的數據結構
-            globalNamespaceList = resData.data || (Array.isArray(resData) ? resData : []);
-            document.getElementById('nsTotalCount').innerText = globalNamespaceList.length;
+            console.log("Nacos 原始回傳資料:", resData);
 
+            // 自動解析各種可能的 JSON 格式
+            if (Array.isArray(resData)) {
+                globalNamespaceList = resData;
+            } else if (resData && Array.isArray(resData.data)) {
+                globalNamespaceList = resData.data;
+            } else if (resData && resData.data && Array.isArray(resData.data.pageItems)) {
+                globalNamespaceList = resData.data.pageItems;
+            } else {
+                globalNamespaceList = [];
+                statusMsg.innerText = `[!] 資料格式異常: ${JSON.stringify(resData)}`;
+            }
+
+            document.getElementById('nsTotalCount').innerText = globalNamespaceList.length;
             renderNamespaces(globalNamespaceList);
         } catch (err) {
             container.innerHTML = '';
@@ -103,7 +108,7 @@
         const container = document.getElementById('namespaceContainer');
         container.innerHTML = '';
 
-        if (!list || list.length === 0) {
+        if (!Array.isArray(list) || list.length === 0) {
             container.innerHTML = '<div style="color: #8b949e; grid-column: span 10;">無符合條件的命名空間</div>';
             return;
         }

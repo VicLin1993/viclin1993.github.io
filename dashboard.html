@@ -11,7 +11,7 @@
         header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0, 240, 255, 0.3); padding-bottom: 16px; margin-bottom: 24px; }
         header h1 { font-size: 20px; color: #00ff88; }
         
-        .btn-action { background: transparent; border: 1px solid #00f0ff; color: #00f0ff; padding: 6px 14px; font-size: 13px; cursor: pointer; border-radius: 3px; }
+        .btn-action { background: transparent; border: 1px solid #00f0ff; color: #00f0ff; padding: 6px 14px; font-size: 13px; cursor: pointer; border-radius: 3px; margin-left: 8px; }
         .btn-action:hover { background: #00f0ff; color: #0d1117; }
         .btn-logout { border-color: #ff5555; color: #ff5555; }
         .btn-logout:hover { background: #ff5555; color: #ffffff; }
@@ -20,8 +20,7 @@
         .search-box { background: rgba(0,0,0,0.4); border: 1px solid rgba(0, 240, 255, 0.4); color: #00ff88; padding: 8px 12px; border-radius: 4px; outline: none; width: 260px; font-size: 13px; }
         .search-box:focus { border-color: #00ff88; }
 
-        /* 10列網格布局 */
-        .namespace-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 10px; margin-bottom: 30px; }
+        .namespace-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 10px; margin-bottom: 20px; }
         @media (max-width: 1600px) { .namespace-grid { grid-template-columns: repeat(5, 1fr); } }
         @media (max-width: 900px) { .namespace-grid { grid-template-columns: repeat(2, 1fr); } }
         
@@ -32,7 +31,7 @@
         .ns-desc { font-size: 10px; color: #58a6ff; margin-top: 4px; }
         .ns-badge { font-size: 9px; color: #00f0ff; margin-top: 2px; }
 
-        .status-msg { font-size: 13px; color: #ff5555; margin-top: 10px; }
+        .status-msg { font-size: 14px; color: #ff5555; background: rgba(255,85,85,0.1); border: 1px solid rgba(255,85,85,0.3); padding: 12px; border-radius: 4px; margin-bottom: 16px; display: none; }
     </style>
 </head>
 <body>
@@ -41,7 +40,7 @@
     <h1>秘密調整基地 // NACOS 控制台</h1>
     <div>
         <button class="btn-action" onclick="fetchNamespaces()">刷新資料</button>
-        <button class="btn-action btn-logout" onclick="logout()">退出</button>
+        <button class="btn-action btn-logout" onclick="logout()">退出登入</button>
     </div>
 </header>
 
@@ -51,12 +50,12 @@
         <input type="text" id="searchInput" class="search-box" placeholder="搜尋命名空間..." oninput="filterNamespaces()">
     </div>
 
-    <div id="namespaceContainer" class="namespace-grid"></div>
     <div id="statusMsg" class="status-msg"></div>
+    <div id="namespaceContainer" class="namespace-grid"></div>
 </main>
 
 <script>
-    const DEFAULT_SERVER = 'http://8.210.71.38:8848';
+    const SERVER_URL = (localStorage.getItem('nacos_server_url') || 'http://8.210.71.38:8848').replace(/\/$/, '');
     let globalNamespaceList = [];
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -67,41 +66,92 @@
         fetchNamespaces();
     });
 
+    async function fetchWithTimeout(url, options = {}, ms = 7000) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), ms);
+        try {
+            const response = await fetch(url, { ...options, signal: controller.signal });
+            clearTimeout(timer);
+            return response;
+        } catch (err) {
+            clearTimeout(timer);
+            throw err;
+        }
+    }
+
     async function fetchNamespaces() {
-        const serverUrl = (localStorage.getItem('nacos_server_url') || DEFAULT_SERVER).replace(/\/$/, '');
         const container = document.getElementById('namespaceContainer');
         const statusMsg = document.getElementById('statusMsg');
         
-        container.innerHTML = '<div style="color: #00f0ff; font-size: 13px; grid-column: span 10;">正在讀取 Nacos 命名空間...</div>';
-        statusMsg.innerText = '';
+        container.innerHTML = '<div style="color: #00f0ff; font-size: 13px; grid-column: span 10;">正在連線 Nacos 並讀取命名空間...</div>';
+        statusMsg.style.display = 'none';
 
         const token = localStorage.getItem('nacos_access_token') || '';
-        const targetUrl = `${serverUrl}/nacos/v1/console/namespaces?accessToken=${token}`;
-        const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
-
-        try {
-            const response = await fetch(proxyUrl);
-            const resData = await response.json();
-            console.log("Nacos 原始回傳資料:", resData);
-
-            // 自動解析各種可能的 JSON 格式
-            if (Array.isArray(resData)) {
-                globalNamespaceList = resData;
-            } else if (resData && Array.isArray(resData.data)) {
-                globalNamespaceList = resData.data;
-            } else if (resData && resData.data && Array.isArray(resData.data.pageItems)) {
-                globalNamespaceList = resData.data.pageItems;
-            } else {
-                globalNamespaceList = [];
-                statusMsg.innerText = `[!] 資料格式異常: ${JSON.stringify(resData)}`;
-            }
-
-            document.getElementById('nsTotalCount').innerText = globalNamespaceList.length;
-            renderNamespaces(globalNamespaceList);
-        } catch (err) {
-            container.innerHTML = '';
-            statusMsg.innerText = `[!] 讀取失敗: ${err.message}`;
+        if (!token) {
+            showError('[!] 未檢測到有效的登入 Token，請重新登入！');
+            setTimeout(logout, 2000);
+            return;
         }
+
+        const targetUrl = `${SERVER_URL}/nacos/v1/console/namespaces?accessToken=${token}`;
+
+        // 嘗試通道：直連 -> CorsProxy -> AllOrigins
+        const fetchCandidates = [
+            targetUrl,
+            'https://corsproxy.io/?' + encodeURIComponent(targetUrl),
+            'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl)
+        ];
+
+        let resData = null;
+        let lastErrorMsg = '';
+
+        for (const url of fetchCandidates) {
+            try {
+                const response = await fetchWithTimeout(url, {}, 8000);
+                if (response.ok) {
+                    const text = await response.text();
+                    try {
+                        resData = JSON.parse(text);
+                        if (resData) break;
+                    } catch(e) {
+                        lastErrorMsg = '回傳內容非 JSON 格式';
+                    }
+                } else {
+                    lastErrorMsg = `HTTP 狀態 ${response.status}`;
+                }
+            } catch (err) {
+                lastErrorMsg = err.name === 'AbortError' ? '連線逾時' : err.message;
+            }
+        }
+
+        if (!resData) {
+            container.innerHTML = '';
+            showError(`[!] 無法連線至 Nacos (${SERVER_URL})，原因：${lastErrorMsg}`);
+            return;
+        }
+
+        // 檢查 Token 是否失效或過期
+        if (resData.code === 403 || resData.code === 401 || (resData.message && resData.message.toLowerCase().includes('token'))) {
+            container.innerHTML = '';
+            showError(`[!] Nacos 登入憑證已過期 (${resData.message || '403 Forbidden'})，2 秒後將自動跳轉至登入頁重新登入...`);
+            setTimeout(logout, 2500);
+            return;
+        }
+
+        // 解析多種可能回傳格式
+        if (Array.isArray(resData)) {
+            globalNamespaceList = resData;
+        } else if (resData && Array.isArray(resData.data)) {
+            globalNamespaceList = resData.data;
+        } else if (resData && resData.data && Array.isArray(resData.data.pageItems)) {
+            globalNamespaceList = resData.data.pageItems;
+        } else {
+            globalNamespaceList = [];
+            showError(`[!] 接收到未知數據格式：${JSON.stringify(resData)}`);
+        }
+
+        document.getElementById('nsTotalCount').innerText = globalNamespaceList.length;
+        renderNamespaces(globalNamespaceList);
     }
 
     function renderNamespaces(list) {
@@ -109,7 +159,7 @@
         container.innerHTML = '';
 
         if (!Array.isArray(list) || list.length === 0) {
-            container.innerHTML = '<div style="color: #8b949e; grid-column: span 10;">無符合條件的命名空間</div>';
+            container.innerHTML = '<div style="color: #8b949e; grid-column: span 10; text-align: center; padding: 40px;">無符合條件的命名空間</div>';
             return;
         }
 
@@ -127,8 +177,7 @@
 
             card.innerHTML = `
                 <div class="ns-name">${nsName}</div>
-                <div class="ns-id">${nsId}</div>
-                ${desc ? `<div class="ns-desc">${desc}</div>` : ''}
+                <div class="ns-id">${nsId}</div>${desc ? `<div class="ns-desc">${desc}</div>` : ''}
                 ${configCount ? `<div class="ns-badge">${configCount}</div>` : ''}
             `;
 
@@ -150,6 +199,12 @@
             return name.includes(query) || id.includes(query) || desc.includes(query);
         });
         renderNamespaces(filtered);
+    }
+
+    function showError(msg) {
+        const statusMsg = document.getElementById('statusMsg');
+        statusMsg.innerText = msg;
+        statusMsg.style.display = 'block';
     }
 
     function logout() {

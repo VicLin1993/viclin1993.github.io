@@ -3,17 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>秘密調整基地 // Nacos 登入</title>
+    <title>秘密调整基地 // 身份验证</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: #0d1117; color: #00f0ff; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .login-box { background: rgba(13, 22, 33, 0.85); border: 1px solid #00f0ff; padding: 40px; border-radius: 6px; width: 100%; max-width: 440px; }
+        .login-box { background: rgba(13, 22, 33, 0.85); border: 1px solid #00f0ff; padding: 40px; border-radius: 6px; width: 100%; max-width: 440px; box-shadow: 0 0 20px rgba(0, 240, 255, 0.2); }
         .title-area { margin-bottom: 30px; text-align: center; }
         .title-area h2 { font-size: 22px; color: #00ff88; margin-bottom: 8px; }
         .input-group { margin-bottom: 20px; }
         .input-group label { display: block; font-size: 13px; color: #00f0ff; margin-bottom: 8px; }
         .input-group input { width: 100%; background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(0, 240, 255, 0.4); border-radius: 4px; padding: 12px; color: #00ff88; font-size: 14px; outline: none; }
-        .btn-submit { width: 100%; padding: 12px; background: transparent; border: 1px solid #00f0ff; color: #00f0ff; font-size: 15px; font-weight: bold; cursor: pointer; border-radius: 4px; }
+        .input-group input:focus { border-color: #00ff88; box-shadow: 0 0 8px rgba(0, 255, 136, 0.3); }
+        .btn-submit { width: 100%; padding: 12px; background: transparent; border: 1px solid #00f0ff; color: #00f0ff; font-size: 15px; font-weight: bold; cursor: pointer; border-radius: 4px; transition: all 0.2s; }
         .btn-submit:hover { background: #00f0ff; color: #0d1117; }
         .error-tip { color: #ff5555; font-size: 13px; margin-top: 15px; text-align: center; display: none; }
     </style>
@@ -22,58 +23,73 @@
 
 <div class="login-box">
     <div class="title-area">
-        <h2>秘密調整基地</h2>
-        <p>接入真實 Nacos 控制台</p>
+        <h2>秘密调整基地</h2>
+        <p>个人控制台授权验证</p>
     </div>
 
     <form id="loginForm">
         <div class="input-group">
-            <label for="username">> 管理帳號</label>
-            <input type="text" id="username" value="nacos" autocomplete="off" required>
+            <label for="username">> 专属账号</label>
+            <input type="text" id="username" value="viclin" autocomplete="off" required>
         </div>
 
         <div class="input-group">
-            <label for="password">> 安全密鑰</label>
-            <input type="password" id="password" value="Ruv6B-WR@SF68g@5" required>
+            <label for="password">> 身份密钥</label>
+            <input type="password" id="password" value="VV1031529vv!!@@##" required>
         </div>
 
-        <button type="submit" class="btn-submit">連 接 控 制 台</button>
+        <button type="submit" class="btn-submit">接 入 控 制 台</button>
         <div id="errorMsg" class="error-tip"></div>
     </form>
 </div>
 
 <script>
-    const SERVER_URL = 'https://nacos.wayturnlive.com';
+    // 专属登录凭证配置
+    const USER_ACCOUNT = 'viclin';
+    const USER_PASSWORD = 'VV1031529vv!!@@##';
+
+    // 后台静默绑定的真实 Nacos 服务端参数
+    const NACOS_SERVER = 'https://nacos.wayturnlive.com';
+    const NACOS_USER = 'nacos';
+    const NACOS_PASS = 'Ruv6B-WR@SF68g@5';
 
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
         e.preventDefault();
 
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
+        const inputUser = document.getElementById('username').value.trim();
+        const inputPass = document.getElementById('password').value.trim();
         const errorMsg = document.getElementById('errorMsg');
 
         errorMsg.style.display = 'none';
 
+        // 1. 验证前端专属账号密码
+        if (inputUser !== USER_ACCOUNT || inputPass !== USER_PASSWORD) {
+            errorMsg.innerText = '[!] 验证失败：账号或密钥不正确';
+            errorMsg.style.display = 'block';
+            return;
+        }
+
+        // 2. 账号验证成功后，后台静默请求 Nacos 拿到 AccessToken
         try {
-            const response = await fetch(`${SERVER_URL}/nacos/v1/auth/users/login`, {
+            const response = await fetch(`${NACOS_SERVER}/nacos/v1/auth/users/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({ username, password })
+                body: new URLSearchParams({ username: NACOS_USER, password: NACOS_PASS })
             });
 
             const data = await response.json();
 
             if (response.ok && data.accessToken) {
                 localStorage.setItem('nacos_access_token', data.accessToken);
-                localStorage.setItem('nacos_server_url', SERVER_URL);
+                localStorage.setItem('nacos_server_url', NACOS_SERVER);
                 localStorage.setItem('is_authenticated', 'true');
                 window.location.href = 'dashboard.html';
             } else {
-                errorMsg.innerText = `[!] 登入失敗: ${data.message || '帳號或密碼錯誤'}`;
+                errorMsg.innerText = `[!] Nacos 连接失败: ${data.message || '后端静默登录失败'}`;
                 errorMsg.style.display = 'block';
             }
         } catch (err) {
-            errorMsg.innerText = `[!] 連線異常: ${err.message}`;
+            errorMsg.innerText = `[!] 网络异常: ${err.message}`;
             errorMsg.style.display = 'block';
         }
     });

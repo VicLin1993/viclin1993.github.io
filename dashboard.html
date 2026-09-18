@@ -5,150 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>秘密调整基地 // Nacos 控制台</title>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
-        }
-
-        body {
-            background-color: #0d1117;
-            background-image: 
-                radial-gradient(circle at 20% 20%, rgba(0, 240, 255, 0.05) 0%, transparent 40%),
-                radial-gradient(circle at 80% 80%, rgba(0, 255, 136, 0.05) 0%, transparent 40%),
-                linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
-            background-size: 100% 100%, 100% 100%, 30px 30px, 30px 30px;
-            color: #00f0ff;
-            min-height: 100vh;
-            padding: 24px;
-        }
-
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid rgba(0, 240, 255, 0.3);
-            padding-bottom: 16px;
-            margin-bottom: 24px;
-        }
-
-        header h1 {
-            font-size: 20px;
-            color: #00ff88;
-            letter-spacing: 1px;
-            text-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
-        }
-
-        .server-config {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: rgba(13, 22, 33, 0.8);
-            border: 1px solid rgba(0, 240, 255, 0.3);
-            padding: 8px 14px;
-            border-radius: 4px;
-        }
-
-        .server-config input {
-            background: transparent;
-            border: none;
-            color: #00ff88;
-            outline: none;
-            font-size: 13px;
-            width: 220px;
-        }
-
-        .btn-action {
-            background: transparent;
-            border: 1px solid #00f0ff;
-            color: #00f0ff;
-            padding: 6px 12px;
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.2s;
-            border-radius: 3px;
-        }
-
-        .btn-action:hover {
-            background: #00f0ff;
-            color: #0d1117;
-            box-shadow: 0 0 10px rgba(0, 240, 255, 0.6);
-        }
-
-        .section-title {
-            font-size: 15px;
-            color: #58a6ff;
-            margin-bottom: 16px;
-            letter-spacing: 1px;
-            font-weight: bold;
-        }
-
-        /* 命名空间网格布局 (10列) */
-        .namespace-grid {
-            display: grid;
-            grid-template-columns: repeat(10, 1fr);
-            gap: 12px;
-            margin-bottom: 30px;
-        }
-
-        @media (max-width: 1600px) {
-            .namespace-grid { grid-template-columns: repeat(5, 1fr); }
-        }
-        @media (max-width: 900px) {
-            .namespace-grid { grid-template-columns: repeat(2, 1fr); }
-        }
-
-        .ns-card {
-            background: rgba(13, 22, 33, 0.7);
-            border: 1px solid rgba(0, 240, 255, 0.3);
-            border-radius: 4px;
-            padding: 12px 10px;
-            cursor: pointer;
-            transition: all 0.25s ease;
-            text-align: center;
-            position: relative;
-            word-break: break-all;
-        }
-
-        .ns-card:hover {
-            border-color: #00ff88;
-            box-shadow: 0 0 12px rgba(0, 255, 136, 0.4);
-            transform: translateY(-2px);
-            background: rgba(0, 255, 136, 0.08);
-        }
-
-        .ns-card.active {
-            border-color: #00ff88;
-            background: rgba(0, 255, 136, 0.15);
-            box-shadow: 0 0 15px rgba(0, 255, 136, 0.6);
-        }
-
-        .ns-name {
-            font-size: 13px;
-            font-weight: bold;
-            color: #00ff88;
-            margin-bottom: 6px;
-        }
-
-        .ns-id {
-            font-size: 11px;
-            color: #8b949e;
-        }
-
-        .ns-count {
-            margin-top: 6px;
-            font-size: 11px;
-            color: #00f0ff;
-            opacity: 0.85;
-        }
-
-        .status-msg {
-            font-size: 13px;
-            color: #ff5555;
-            margin-top: 10px;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: #0d1117; color: #00f0ff; min-height: 100vh; padding: 24px; }
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0, 240, 255, 0.3); padding-bottom: 16px; margin-bottom: 24px; }
+        header h1 { font-size: 20px; color: #00ff88; }
+        .server-config { display: flex; align-items: center; gap: 12px; background: rgba(13, 22, 33, 0.8); border: 1px solid rgba(0, 240, 255, 0.3); padding: 8px 14px; border-radius: 4px; }
+        .server-config input { background: transparent; border: none; color: #00ff88; outline: none; font-size: 13px; width: 220px; }
+        .btn-action { background: transparent; border: 1px solid #00f0ff; color: #00f0ff; padding: 6px 12px; font-size: 13px; cursor: pointer; border-radius: 3px; }
+        .btn-action:hover { background: #00f0ff; color: #0d1117; }
+        .namespace-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 12px; margin-bottom: 30px; }
+        @media (max-width: 1600px) { .namespace-grid { grid-template-columns: repeat(5, 1fr); } }
+        @media (max-width: 900px) { .namespace-grid { grid-template-columns: repeat(2, 1fr); } }
+        .ns-card { background: rgba(13, 22, 33, 0.7); border: 1px solid rgba(0, 240, 255, 0.3); border-radius: 4px; padding: 12px 10px; cursor: pointer; text-align: center; word-break: break-all; }
+        .ns-card:hover, .ns-card.active { border-color: #00ff88; background: rgba(0, 255, 136, 0.15); box-shadow: 0 0 15px rgba(0, 255, 136, 0.6); }
+        .ns-name { font-size: 13px; font-weight: bold; color: #00ff88; margin-bottom: 6px; }
+        .ns-id { font-size: 11px; color: #8b949e; }
+        .status-msg { font-size: 13px; color: #ff5555; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -164,10 +36,8 @@
 </header>
 
 <main>
-    <div class="section-title">> 选择命名空间（Namespace）</div>
-    <div id="namespaceContainer" class="namespace-grid">
-        <!-- 动态读取 Nacos 的命名空间列表 -->
-    </div>
+    <div style="font-size:15px; color:#58a6ff; margin-bottom:16px;">> 选择命名空间（Namespace）</div>
+    <div id="namespaceContainer" class="namespace-grid"></div>
     <div id="statusMsg" class="status-msg"></div>
 </main>
 
@@ -180,37 +50,30 @@
 
         const savedServer = localStorage.getItem('nacos_server_url') || 'http://8.210.71.38:8848';
         document.getElementById('nacosServer').value = savedServer;
-
         fetchNamespaces();
     });
 
     async function fetchNamespaces() {
         const serverUrl = document.getElementById('nacosServer').value.replace(/\/$/, '');
         localStorage.setItem('nacos_server_url', serverUrl);
-        
         const container = document.getElementById('namespaceContainer');
         const statusMsg = document.getElementById('statusMsg');
         
-        container.innerHTML = '<div style="color: #00f0ff; font-size: 13px;">正在实时拉取 Nacos 命名空间...</div>';
+        container.innerHTML = '<div style="color: #00f0ff; font-size: 13px;">正在同步数据...</div>';
         statusMsg.innerText = '';
 
         const token = localStorage.getItem('nacos_access_token') || '';
+        const targetUrl = `${serverUrl}/nacos/v1/console/namespaces?accessToken=${token}`;
+        const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl);
 
         try {
-            const response = await fetch(`${serverUrl}/nacos/v1/console/namespaces?accessToken=${token}`);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP 异常代码: ${response.status}`);
-            }
-
+            const response = await fetch(proxyUrl);
             const resData = await response.json();
             const list = resData.data || resData || [];
-
             renderNamespaces(list);
         } catch (err) {
             container.innerHTML = '';
-            statusMsg.innerText = `[!] 获取数据失败: ${err.message}。提示：可能是浏览器拦截了 HTTPS 向 HTTP(8.210.71.38:8848) 发起的跨域请求。`;
-            console.error(err);
+            statusMsg.innerText = `[!] 获取失败: ${err.message}`;
         }
     }
 
@@ -219,7 +82,7 @@
         container.innerHTML = '';
 
         if (!list || list.length === 0) {
-            container.innerHTML = '<div style="color: #8b949e;">未检测到任何命名空间</div>';
+            container.innerHTML = '<div style="color: #8b949e;">未检测到命名空间</div>';
             return;
         }
 
@@ -230,26 +93,19 @@
 
             const nsName = item.namespaceShowName || item.namespace || '默认空间 (Public)';
             const nsId = item.namespace || 'public';
-            const configCount = item.configCount !== undefined ? `${item.configCount} 项配置` : '';
 
             card.innerHTML = `
                 <div class="ns-name">${nsName}</div>
                 <div class="ns-id">${nsId}</div>
-                ${configCount ? `<div class="ns-count">${configCount}</div>` : ''}
             `;
 
             card.onclick = () => {
                 document.querySelectorAll('.ns-card').forEach(c => c.classList.remove('active'));
                 card.classList.add('active');
-                onSelectNamespace(nsId, nsName);
             };
 
             container.appendChild(card);
         });
-    }
-
-    function onSelectNamespace(nsId, nsName) {
-        console.log('当前选中命名空间:', nsId, nsName);
     }
 
     function logout() {

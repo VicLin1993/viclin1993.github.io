@@ -5,137 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>终端访问 // 秘密调整基地</title>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
-        }
-
-        body {
-            background-color: #0d1117;
-            background-image: 
-                radial-gradient(circle at 20% 20%, rgba(0, 240, 255, 0.05) 0%, transparent 40%),
-                radial-gradient(circle at 80% 80%, rgba(0, 255, 136, 0.05) 0%, transparent 40%),
-                linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
-            background-size: 100% 100%, 100% 100%, 30px 30px, 30px 30px;
-            color: #00f0ff;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            overflow: hidden;
-        }
-
-        .login-box {
-            position: relative;
-            background: rgba(13, 22, 33, 0.85);
-            border: 1px solid #00f0ff;
-            box-shadow: 0 0 20px rgba(0, 240, 255, 0.2), inset 0 0 15px rgba(0, 240, 255, 0.1);
-            border-radius: 6px;
-            padding: 40px;
-            width: 100%;
-            max-width: 440px;
-            backdrop-filter: blur(8px);
-        }
-
-        .login-box::before {
-            content: '';
-            position: absolute;
-            top: -5px; left: -5px;
-            width: 12px; height: 12px;
-            border-top: 2px solid #00ff88;
-            border-left: 2px solid #00ff88;
-        }
-
-        .login-box::after {
-            content: '';
-            position: absolute;
-            bottom: -5px; right: -5px;
-            width: 12px; height: 12px;
-            border-bottom: 2px solid #00ff88;
-            border-right: 2px solid #00ff88;
-        }
-
-        .title-area {
-            margin-bottom: 30px;
-            text-align: center;
-        }
-
-        .title-area h2 {
-            font-size: 22px;
-            letter-spacing: 2px;
-            color: #00ff88;
-            text-shadow: 0 0 8px rgba(0, 255, 136, 0.6);
-            margin-bottom: 8px;
-        }
-
-        .title-area p {
-            font-size: 13px;
-            color: #58a6ff;
-            opacity: 0.85;
-            letter-spacing: 1px;
-        }
-
-        .input-group {
-            margin-bottom: 20px;
-            text-align: left;
-        }
-
-        .input-group label {
-            display: block;
-            font-size: 13px;
-            color: #00f0ff;
-            margin-bottom: 8px;
-            letter-spacing: 1px;
-        }
-
-        .input-group input {
-            width: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(0, 240, 255, 0.4);
-            border-radius: 4px;
-            padding: 12px;
-            color: #00ff88;
-            font-size: 14px;
-            outline: none;
-            transition: all 0.3s ease;
-        }
-
-        .input-group input:focus {
-            border-color: #00ff88;
-            box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
-        }
-
-        .btn-submit {
-            width: 100%;
-            padding: 12px;
-            background: transparent;
-            border: 1px solid #00f0ff;
-            color: #00f0ff;
-            font-size: 15px;
-            font-weight: bold;
-            letter-spacing: 2px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 10px;
-            border-radius: 4px;
-        }
-
-        .btn-submit:hover {
-            background: #00f0ff;
-            color: #0d1117;
-            box-shadow: 0 0 15px rgba(0, 240, 255, 0.8);
-        }
-
-        .error-tip {
-            color: #ff5555;
-            font-size: 13px;
-            margin-top: 15px;
-            text-align: center;
-            display: none;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: #0d1117; color: #00f0ff; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .login-box { background: rgba(13, 22, 33, 0.85); border: 1px solid #00f0ff; padding: 40px; border-radius: 6px; width: 100%; max-width: 440px; }
+        .title-area { margin-bottom: 30px; text-align: center; }
+        .title-area h2 { font-size: 22px; color: #00ff88; margin-bottom: 8px; }
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; font-size: 13px; color: #00f0ff; margin-bottom: 8px; }
+        .input-group input { width: 100%; background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(0, 240, 255, 0.4); border-radius: 4px; padding: 12px; color: #00ff88; font-size: 14px; outline: none; }
+        .btn-submit { width: 100%; padding: 12px; background: transparent; border: 1px solid #00f0ff; color: #00f0ff; font-size: 15px; font-weight: bold; cursor: pointer; border-radius: 4px; }
+        .btn-submit:hover { background: #00f0ff; color: #0d1117; }
+        .error-tip { color: #ff5555; font-size: 13px; margin-top: 15px; text-align: center; display: none; }
     </style>
 </head>
 <body>
@@ -151,17 +31,14 @@
             <label for="serverUrl">> 服务端地址</label>
             <input type="text" id="serverUrl" value="http://8.210.71.38:8848" required>
         </div>
-
         <div class="input-group">
             <label for="username">> 管理账号</label>
             <input type="text" id="username" value="nacos" autocomplete="off" required>
         </div>
-
         <div class="input-group">
             <label for="password">> 安全密钥</label>
             <input type="password" id="password" value="Ruv6B-WR@SF68g@5" required>
         </div>
-
         <button type="submit" class="btn-submit">连 接 控 制 台</button>
         <div id="errorMsg" class="error-tip"></div>
     </form>
@@ -176,8 +53,11 @@
         const password = document.getElementById('password').value;
         const errorMsg = document.getElementById('errorMsg');
 
+        // 使用 CORS 代理绕过跨域与 HTTPS 拦截
+        const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(`${serverUrl}/nacos/v1/auth/users/login`);
+
         try {
-            const response = await fetch(`${serverUrl}/nacos/v1/auth/users/login`, {
+            const response = await fetch(proxyUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: new URLSearchParams({ username, password })
@@ -189,17 +69,14 @@
                 localStorage.setItem('nacos_access_token', data.accessToken);
                 localStorage.setItem('nacos_server_url', serverUrl);
                 localStorage.setItem('is_authenticated', 'true');
-                
-                // 无弹窗，直接进入控制台
                 window.location.href = 'dashboard.html';
             } else {
                 errorMsg.innerText = `[!] 登录失败: ${data.message || '账号或密码错误'}`;
                 errorMsg.style.display = 'block';
             }
         } catch (err) {
-            errorMsg.innerText = `[!] 连接异常: 请检查服务端地址或 CORS 跨域限制`;
+            errorMsg.innerText = `[!] 连接异常: ${err.message}`;
             errorMsg.style.display = 'block';
-            console.error(err);
         }
     });
 </script>

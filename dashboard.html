@@ -6,61 +6,230 @@
     <title>秘密调整基地 // 控制台</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background-color: #0d1117; color: #c9d1d9; padding: 20px; font-size: 14px; }
-        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #30363d; padding-bottom: 15px; margin-bottom: 20px; }
-        h1 { font-size: 20px; color: #58a6ff; }
-        .user-info { font-size: 13px; color: #8b949e; }
-        .btn-logout { background: #21262d; border: 1px solid #30363d; color: #f85149; padding: 4px 12px; border-radius: 4px; cursor: pointer; }
-        .btn-logout:hover { background: #b82525; color: #fff; }
-        .panel-box { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 20px; margin-bottom: 20px; }
-        .status-bar { color: #3fb950; font-weight: bold; margin-bottom: 10px; }
+        body { background-color: #0d1117; color: #c9d1d9; font-size: 14px; }
+        .layout { display: flex; min-height: 100vh; }
+
+        .sidebar { width: 220px; background: #161b22; border-right: 1px solid #30363d; display: flex; flex-direction: column; padding: 20px 0; flex-shrink: 0; }
+        .brand { color: #58a6ff; font-size: 15px; font-weight: bold; padding: 0 20px 20px; border-bottom: 1px solid #30363d; margin-bottom: 15px; }
+        .nav-item { padding: 12px 20px; cursor: pointer; color: #8b949e; border-left: 3px solid transparent; transition: all 0.15s; }
+        .nav-item:hover { background: #21262d; color: #c9d1d9; }
+        .nav-item.active { color: #00f0ff; border-left-color: #00f0ff; background: rgba(0,240,255,0.06); }
+        .sidebar-footer { margin-top: auto; padding: 15px 20px; border-top: 1px solid #30363d; font-size: 12px; color: #8b949e; }
+        .sidebar-footer .server { word-break: break-all; margin-bottom: 8px; color: #58a6ff; }
+        .sidebar-footer button { width: 100%; padding: 6px; background: #21262d; border: 1px solid #30363d; color: #f85149; border-radius: 4px; cursor: pointer; }
+        .sidebar-footer button:hover { background: #b82525; color: #fff; }
+
+        .content { flex: 1; padding: 24px 32px; overflow-y: auto; min-width: 0; }
+        .view-section { display: none; }
+        .view-section.active { display: block; }
+        h2 { font-size: 18px; color: #58a6ff; margin-bottom: 18px; }
+
+        .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+        .toolbar input { background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 8px 12px; border-radius: 4px; font-size: 13px; min-width: 200px; }
+        .toolbar input:focus { border-color: #58a6ff; outline: none; }
+        .toolbar button { background: #21262d; border: 1px solid #30363d; color: #c9d1d9; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+        .toolbar button:hover { background: #30363d; color: #fff; }
+        .toolbar .count { color: #8b949e; font-size: 13px; }
+
+        .status-msg { display: none; padding: 10px 14px; border-radius: 4px; margin-bottom: 14px; background: rgba(248,81,73,0.1); border: 1px solid #f85149; color: #f85149; font-size: 13px; }
+
+        .ns-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+        .ns-card { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 16px; cursor: pointer; transition: all 0.15s; }
+        .ns-card:hover { border-color: #58a6ff; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(88,166,255,0.15); }
+        .ns-name { font-size: 15px; color: #00ff88; font-weight: bold; margin-bottom: 6px; }
+        .ns-id { font-size: 12px; color: #8b949e; word-break: break-all; margin-bottom: 8px; }
+        .ns-desc { font-size: 12px; color: #8b949e; margin-bottom: 6px; }
+        .ns-badge { display: inline-block; background: rgba(0,240,255,0.1); color: #00f0ff; padding: 2px 8px; border-radius: 3px; font-size: 11px; }
+
+        .pagination { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; }
+        #paginationControls { display: flex; gap: 6px; }
+        .page-btn { background: #21262d; border: 1px solid #30363d; color: #c9d1d9; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; min-width: 32px; }
+        .page-btn:hover:not(:disabled) { background: #30363d; }
+        .page-btn.active { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+        .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .pagination .info { color: #8b949e; font-size: 13px; }
+
+        .config-table { width: 100%; border-collapse: collapse; background: #161b22; border: 1px solid #30363d; border-radius: 6px; overflow: hidden; }
+        .config-table th, .config-table td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #21262d; font-size: 13px; }
+        .config-table th { background: #0d1117; color: #58a6ff; font-weight: 600; }
+        .config-table tr:hover { background: #1c2128; }
+        .config-table .btn-edit, .config-table .btn-compare { background: #21262d; border: 1px solid #30363d; color: #c9d1d9; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-right: 6px; }
+        .config-table .btn-edit:hover { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+        .config-table .btn-compare:hover { background: #238636; color: #fff; border-color: #238636; }
+
+        .query-result { background: #161b22; border: 1px solid #30363d; border-radius: 6px; overflow: hidden; }
+        .query-result-header { padding: 10px 14px; background: #0d1117; border-bottom: 1px solid #30363d; color: #c9d1d9; font-size: 13px; }
+        .query-result-body { padding: 16px; margin: 0; color: #e6edf3; font-family: monospace; font-size: 13px; line-height: 1.5; overflow-x: auto; white-space: pre-wrap; word-break: break-all; max-height: 60vh; overflow-y: auto; }
+
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: #161b22; border: 1px solid #30363d; border-radius: 6px; width: 90%; max-width: 900px; max-height: 85vh; display: flex; flex-direction: column; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid #30363d; color: #00ff88; font-weight: bold; }
+        .modal-header button { background: none; border: none; color: #8b949e; font-size: 22px; cursor: pointer; line-height: 1; }
+        .modal-header button:hover { color: #f85149; }
+        #configContentArea { flex: 1; min-height: 400px; background: #0d1117; color: #e6edf3; border: none; padding: 16px; font-family: monospace; font-size: 13px; outline: none; resize: none; line-height: 1.5; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 12px 18px; border-top: 1px solid #30363d; }
+        .modal-footer button { padding: 8px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; }
+        .modal-footer button:hover { background: #30363d; }
+        #saveConfigBtn { background: #238636; border-color: #238636; color: #fff; }
+        #saveConfigBtn:hover { background: #2ea043; }
     </style>
 </head>
 <body>
 
-<header>
-    <h1>秘密调整基地 // Nacos 管理控制台</h1>
-    <div class="user-info">
-        已连接: <span id="currentServer" style="color:#58a6ff;">-</span>
-        <button class="btn-logout" onclick="logout()" style="margin-left: 10px;">退出接入</button>
-    </div>
-</header>
+<div class="layout">
+    <aside class="sidebar">
+        <div class="brand">秘密调整基地</div>
+        <div class="nav-item active" data-tab="overview">概览</div>
+        <div class="nav-item" data-tab="query">查询</div>
+        <div class="nav-item" data-tab="configs">修改</div>
+        <div class="sidebar-footer">
+            <div class="server" id="currentServer">-</div>
+            <button onclick="logout()">退出接入</button>
+        </div>
+    </aside>
 
-<div class="panel-box">
-    <div class="status-bar">● 系统就绪 (环境配置已加载)</div>
-    <p>Nacos 服务端地址: <strong id="serverDisplay" style="color: #00f0ff;">读取中...</strong></p>
+    <main class="content">
+        <!-- 概览 -->
+        <section id="view-overview" class="view-section active">
+            <h2>命名空间概览</h2>
+            <div class="toolbar">
+                <input id="searchInput" placeholder="搜索命名空间 / ID / 描述" oninput="onSearchInput()">
+                <span class="count">共 <b id="nsTotalCount" style="color:#00ff88;">0</b> 个命名空间</span>
+            </div>
+            <div id="statusMsg" class="status-msg"></div>
+            <div id="namespaceContainer" class="ns-grid"></div>
+            <div class="pagination">
+                <div id="paginationControls"></div>
+                <span class="info">第 <b id="pageCurrentText">1</b> / <b id="pageTotalText">1</b> 页</span>
+            </div>
+        </section>
+
+        <!-- 查询 -->
+        <section id="view-query" class="view-section">
+            <h2>配置查询</h2>
+            <div class="toolbar">
+                <input id="queryDataId" placeholder="Data ID">
+                <input id="queryGroup" placeholder="Group（默认 DEFAULT_GROUP）">
+                <button id="btnQuery" onclick="doQueryConfig()">查 询</button>
+            </div>
+            <div id="queryStatusMsg" class="status-msg"></div>
+            <div id="queryResultContainer"></div>
+        </section>
+
+        <!-- 修改 -->
+        <section id="view-configs" class="view-section">
+            <h2>修改配置 · <span id="currentNsTitle" style="color:#00ff88;">-</span></h2>
+            <div class="toolbar">
+                <input id="filterDataId" placeholder="过滤 Data ID" oninput="applyCombinedFilter()">
+                <input id="filterGroup" placeholder="过滤 Group" oninput="applyCombinedFilter()">
+                <button onclick="resetConfigFilter()">重 置</button>
+                <span class="count">共 <b id="configFilteredCount" style="color:#00ff88;">0</b> 条</span>
+            </div>
+            <div id="configStatusMsg" class="status-msg"></div>
+            <table class="config-table">
+                <thead>
+                    <tr><th>Data ID</th><th>Group</th><th>App</th><th>操作</th></tr>
+                </thead>
+                <tbody id="configTableBody"></tbody>
+            </table>
+        </section>
+    </main>
 </div>
 
-<!-- 比对弹窗容器或其他挂载容器 -->
-<div id="compareModalContainer"></div>
+<!-- 编辑弹窗 -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span id="modalDataId">-</span>
+            <button onclick="closeEditModal()">×</button>
+        </div>
+        <textarea id="configContentArea" spellcheck="false"></textarea>
+        <div class="modal-footer">
+            <button onclick="closeEditModal()">取 消</button>
+            <button id="saveConfigBtn" onclick="saveConfigToServer()">保存配置</button>
+        </div>
+    </div>
+</div>
+
+<!-- 业务脚本 -->
+<script src="js/debug-logger.js"></script>
+<script src="js/app.js"></script>
+<script src="js/overview.js"></script>
+<script src="js/configs.js"></script>
+<script src="js/edit.js"></script>
+<script src="js/compare.js"></script>
 
 <script>
-    // 1. 权限拦截
-    if (localStorage.getItem('is_authenticated') !== 'true') {
-        window.location.href = 'index.html';
-    }
+    // 从本地读取服务器地址（跟 index.html 存入的 key 一致）
+    const _serverUrl = localStorage.getItem('nacos_server_url') || '';
+    // 兼容 app.js 里读取的旧 key
+    localStorage.setItem('nacos_server_addr', _serverUrl);
 
-    // 2. 环境配置安全获取
-    const SERVER_URL = localStorage.getItem('nacos_server_url') || '';
-    
-    // 确保本地缓存已更新
-    if (SERVER_URL) {
-        localStorage.setItem('nacos_server_url', SERVER_URL);
-    }
+    const _serverDisplay = document.getElementById('currentServer');
+    if (_serverDisplay) _serverDisplay.innerText = _serverUrl || '未配置';
 
-    // 渲染页面信息
-    document.getElementById('currentServer').innerText = SERVER_URL || '未配置地址';
-    document.getElementById('serverDisplay').innerText = SERVER_URL || '未配置地址';
+    // 侧边栏高亮自动跟随视图变化（含 compare.js 跳转时的场景）
+    const _viewObserver = new MutationObserver(() => {
+        const activeView = document.querySelector('.view-section.active');
+        if (!activeView) return;
+        const tabKey = activeView.id.replace('view-', '');
+        document.querySelectorAll('.nav-item').forEach(el => {
+            el.classList.toggle('active', el.getAttribute('data-tab') === tabKey);
+        });
+    });
+    document.querySelectorAll('.view-section').forEach(el => {
+        _viewObserver.observe(el, { attributes: true, attributeFilter: ['class'] });
+    });
 
-    function logout() {
-        localStorage.removeItem('is_authenticated');
-        localStorage.removeItem('nacos_access_token');
-        window.location.href = 'index.html';
+    // 配置查询（compare.js 跳转也会调用此函数）
+    async function doQueryConfig() {
+        const dataId = document.getElementById('queryDataId').value.trim();
+        const group  = document.getElementById('queryGroup').value.trim() || 'DEFAULT_GROUP';
+        const statusElem = document.getElementById('queryStatusMsg');
+        const resultElem = document.getElementById('queryResultContainer');
+
+        statusElem.style.display = 'block';
+        statusElem.style.background = 'rgba(88,166,255,0.1)';
+        statusElem.style.borderColor = '#58a6ff';
+        statusElem.style.color = '#58a6ff';
+        statusElem.innerText = '查询中...';
+        resultElem.innerHTML = '';
+
+        const token = localStorage.getItem('nacos_access_token') || '';
+        const cleanUrl = _serverUrl.replace(/\/+$/, '');
+        const tenant = (typeof activeNamespaceId !== 'undefined' && activeNamespaceId && activeNamespaceId !== 'public')
+            ? activeNamespaceId : '';
+
+        try {
+            const url = `${cleanUrl}/nacos/v1/cs/configs?dataId=${encodeURIComponent(dataId)}&group=${encodeURIComponent(group)}&tenant=${encodeURIComponent(tenant)}&accessToken=${encodeURIComponent(token)}`;
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const text = await resp.text();
+
+            if (!text) {
+                statusElem.style.background = 'rgba(210,153,34,0.1)';
+                statusElem.style.borderColor = '#d29922';
+                statusElem.style.color = '#d29922';
+                statusElem.innerText = '未查询到该配置';
+                return;
+            }
+
+            statusElem.style.display = 'none';
+            resultElem.innerHTML = `
+                <div class="query-result">
+                    <div class="query-result-header">
+                        Data ID: <b>${escapeHtml(dataId)}</b> · Group: <b>${escapeHtml(group)}</b>
+                    </div>
+                    <pre class="query-result-body">${escapeHtml(text)}</pre>
+                </div>`;
+        } catch (err) {
+            statusElem.style.background = 'rgba(248,81,73,0.1)';
+            statusElem.style.borderColor = '#f85149';
+            statusElem.style.color = '#f85149';
+            statusElem.innerText = `[!] 查询失败: ${err.message}`;
+        }
     }
 </script>
-
-<!-- 加载其他功能组件与调试日志工具 -->
-<script src="js/compare.js"></script>
-<script src="js/debug-logger.js"></script>
 </body>
 </html>

@@ -1,11 +1,189 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-    <meta charset="utf-8">
-    <title>我的第一个GitHub Pages网站</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TERMINAL ACCESS // 专享登录</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        body {
+            background-color: #0d1117;
+            background-image: 
+                radial-gradient(circle at 20% 20%, rgba(0, 240, 255, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 80% 80%, rgba(0, 255, 136, 0.05) 0%, transparent 40%),
+                linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 30px 30px, 30px 30px;
+            color: #00f0ff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .login-box {
+            position: relative;
+            background: rgba(13, 22, 33, 0.85);
+            border: 1px solid #00f0ff;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.2), inset 0 0 15px rgba(0, 240, 255, 0.1);
+            border-radius: 4px;
+            padding: 40px;
+            width: 100%;
+            max-width: 440px;
+            backdrop-filter: blur(8px);
+        }
+
+        .login-box::before {
+            content: '';
+            position: absolute;
+            top: -5px; left: -5px;
+            width: 100px; height: 10px;
+            border-top: 2px solid #00ff88;
+            border-left: 2px solid #00ff88;
+        }
+
+        .login-box::after {
+            content: '';
+            position: absolute;
+            bottom: -5px; right: -5px;
+            width: 10px; height: 10px;
+            border-bottom: 2px solid #00ff88;
+            border-right: 2px solid #00ff88;
+        }
+
+        .title-area {
+            margin-bottom: 30px;
+        }
+
+        .title-area h2 {
+            font-size: 20px;
+            letter-spacing: 2px;
+            color: #00ff88;
+            text-shadow: 0 0 8px rgba(0, 255, 136, 0.6);
+            margin-bottom: 8px;
+        }
+
+        .title-area p {
+            font-size: 12px;
+            color: #58a6ff;
+            opacity: 0.8;
+            letter-spacing: 1px;
+        }
+
+        .input-group {
+            margin-bottom: 24px;
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 12px;
+            color: #00f0ff;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+
+        .input-group input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(0, 240, 255, 0.4);
+            border-radius: 2px;
+            padding: 12px;
+            color: #00ff88;
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .input-group input:focus {
+            border-color: #00ff88;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 12px;
+            background: transparent;
+            border: 1px solid #00f0ff;
+            color: #00f0ff;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .btn-submit:hover {
+            background: #00f0ff;
+            color: #0d1117;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.8);
+        }
+
+        .error-tip {
+            color: #ff5555;
+            font-size: 12px;
+            margin-top: 15px;
+            text-align: center;
+            display: none;
+        }
+    </style>
 </head>
 <body>
-    <h1>你好，世界！</h1>
-    <p>这是我的GitHub Pages网站。</p>
+
+<div class="login-box">
+    <div class="title-area">
+        <h2>FIND THE KEY.</h2>
+        <p>START THE SEQUENCE.</p>
+    </div>
+
+    <form id="loginForm">
+        <div class="input-group">
+            <label for="username">> USERNAME</label>
+            <input type="text" id="username" autocomplete="off" required>
+        </div>
+
+        <div class="input-group">
+            <label for="password">> SECURE KEY</label>
+            <input type="password" id="password" required>
+        </div>
+
+        <button type="submit" class="btn-submit">INITIALIZE ACCESS</button>
+        <div id="errorMsg" class="error-tip"></div>
+    </form>
+</div>
+
+<script>
+    // 在这里修改你的专属账号和密码
+    const ADMIN_USER = "vic";
+    const ADMIN_PASS = "123456";
+
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const inputUser = document.getElementById('username').value;
+        const inputPass = document.getElementById('password').value;
+        const errorMsg = document.getElementById('errorMsg');
+
+        if (inputUser === ADMIN_USER && inputPass === ADMIN_PASS) {
+            localStorage.setItem('is_authenticated', 'true');
+            alert('验证成功，进入系统...');
+            window.location.href = 'dashboard.html';
+        } else {
+            errorMsg.innerText = '[!] ACCESS DENIED: INVALID USER OR KEY';
+            errorMsg.style.display = 'block';
+        }
+    });
+</script>
+
 </body>
 </html>

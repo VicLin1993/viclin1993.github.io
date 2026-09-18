@@ -1,105 +1,71 @@
 /**
  * ========================================================
  * 模块：js/compare.js
- * 职责：独立多版本自由对比 (版本 1 vs 版本 2/3/4/5...)，
- *       包含 Namespace 下拉选择、自动带入参数联动、变动时间标注
+ * 职责：处理配置文件的 Side-by-Side 独立对比弹窗 (Modal)
+ * 特性：防 JSON 解析崩溃、自动兼容纯文本/JSON 响应、自由版本对比
  * ========================================================
  */
 
-let historyListCache = []; // 当前选定配置的历史记录列表缓存
-let historyDetailMap = {}; // 缓存各 nid 对应的文本内容
+let historyListCache = []; 
+let historyDetailMap = {}; 
+let currentCompareDataId = '';
+let currentCompareGroup = '';
+let currentCompareTenant = '';
 
-// 初始化对比视窗的 Namespace 下拉选单
-function initCompareNsDropdown() {
-    const nsSelect = document.getElementById('compareNsSelect');
-    if (!nsSelect) return;
-    
-    nsSelect.innerHTML = '';
-    rawNamespaceList.forEach(item => {
-        const option = document.createElement('option');
-        option.value = item.namespace;
-        option.innerText = item.namespaceShowName || (item.namespace === "" ? "public" : item.namespace);
-        if (item.namespace === activeNamespaceId) {
-            option.selected = true;
-        }
-        nsSelect.appendChild(option);
-    });
-}
-
-// 切换 Namespace 下拉选单时的响应
-function onCompareNsChange() {
-    activeNamespaceId = document.getElementById('compareNsSelect').value;
-}
-
-// 🔥 核心联动：按下“对比”按钮后，自动跳转并自动填入参数触发查询
+// 打开独立对比 Modal 弹窗
 async function compareToQueryTab(dataId, group) {
-    // 1. 自动跳转到第二个“查询 (版本对比)”分页
-    switchTab('search');
-    
-    // 2. 初始化并更新 Namespace 下拉选单
-    initCompareNsDropdown();
-    
-    // 3. 自动将对应配置文件的 Namespace、Data ID 和 Group 调整至筛选栏中
-    const nsSelect = document.getElementById('compareNsSelect');
-    if (nsSelect) {
-        nsSelect.value = activeNamespaceId || '';
-    }
-    
-    document.getElementById('compareDataId').value = dataId || '';
-    document.getElementById('compareGroup').value = group || 'DEFAULT_GROUP';
+    currentCompareDataId = dataId;
+    currentCompareGroup = group;
+    currentCompareTenant = (activeNamespaceId === 'public' || !activeNamespaceId) ? '' : activeNamespaceId;
 
-    // 4. 自动发起历史记录查询与版本对比
-    await fetchHistoryAndCompare();
-}
+    document.getElementById('compareModalTitle').innerText = `${dataId} (${group})`;
+    document.getElementById('compareModal').classList.add('active');
 
-// 查询并拉取全量历史版本清单
-async function fetchHistoryAndCompare() {
-    const nsSelect = document.getElementById('compareNsSelect');
-    if (!nsSelect || nsSelect.options.length === 0) {
-        initCompareNsDropdown();
-    }
-
-    const selectedNs = nsSelect ? nsSelect.value : (activeNamespaceId || '');
-    const dataId = document.getElementById('compareDataId').value.trim();
-    const group = document.getElementById('compareGroup').value.trim();
     const statusMsg = document.getElementById('compareStatusMsg');
-
-    if (!dataId) {
-        alert('请输入需要对比的 Data ID / YAML 档案名称！');
-        return;
-    }
-
     if (statusMsg) statusMsg.style.display = 'none';
+
     document.getElementById('leftDiffBody').innerHTML = '<span style="color:#00f0ff;">正在检索历史版本记录...</span>';
     document.getElementById('rightDiffBody').innerHTML = '<span style="color:#00f0ff;">正在检索历史版本记录...</span>';
 
+    await fetchHistoryAndCompare();
+}
+
+function closeCompareModal() {
+    document.getElementById('compareModal').classList.remove('active');
+}
+
+// 查询并拉取历史版本清单
+async function fetchHistoryAndCompare() {
     const token = localStorage.getItem('nacos_access_token') || '';
-    const tenantParam = (selectedNs === 'public' || !selectedNs) ? '' : selectedNs;
+    const statusMsg = document.getElementById('compareStatusMsg');
 
     try {
-        // 1. 获取 Nacos 历史改动版本 (拉取最近 20 个版本)
-        const historyUrl = `${SERVER_URL}/nacos/v1/cs/history?search=accurate&dataId=${encodeURIComponent(dataId)}&group=${encodeURIComponent(group || 'DEFAULT_GROUP')}&tenant=${encodeURIComponent(tenantParam)}&pageNo=1&pageSize=20&accessToken=${token}`;
+        // 1. 获取 Nacos 历史改动版本
+        const historyUrl = `${SERVER_URL}/nacos/v1/cs/history?search=accurate&dataId=${encodeURIComponent(currentCompareDataId)}&group=${encodeURIComponent(currentCompareGroup)}&tenant=${encodeURIComponent(currentCompareTenant)}&pageNo=1&pageSize=20&accessToken=${token}`;
         const historyRes = await fetch(historyUrl);
         const historyText = await historyRes.text();
 
         let historyData = {};
-        try { historyData = JSON.parse(historyText); } catch (e) {}
+        try { 
+            historyData = JSON.parse(historyText); 
+        } catch (e) {
+            console.warn('历史版本列表非标准 JSON, 尝试降级处理:', historyText);
+        }
 
         historyListCache = historyData.pageItems || [];
         historyDetailMap = {};
 
-        // 2. 获取当前最新的实时配置作为第 0 版
-        const currUrl = `${SERVER_URL}/nacos/v1/cs/configs?dataId=${encodeURIComponent(dataId)}&group=${encodeURIComponent(group || 'DEFAULT_GROUP')}&tenant=${encodeURIComponent(tenantParam)}&accessToken=${token}`;
+        // 2. 获取当前最新实时的配置内容作为【当前最新】
+        const currUrl = `${SERVER_URL}/nacos/v1/cs/configs?dataId=${encodeURIComponent(currentCompareDataId)}&group=${encodeURIComponent(currentCompareGroup)}&tenant=${encodeURIComponent(currentCompareTenant)}&accessToken=${token}`;
         const currRes = await fetch(currUrl);
         const currentContent = await currRes.text();
 
         historyDetailMap['current'] = {
-            content: currentContent,
-            time: '当前最新状态',
-            label: '【当前最新配置】'
+            text: currentContent,
+            time: '当前最新状态'
         };
 
-        // 3. 填充左右版本的下拉选单并展示对比结果
+        // 3. 渲染版本下拉框
         populateVersionSelects();
 
     } catch (err) {
@@ -159,16 +125,10 @@ function populateVersionSelects() {
 async function triggerDiffRender() {
     const leftNid = document.getElementById('compareLeftVersion').value;
     const rightNid = document.getElementById('compareRightVersion').value;
-
-    const nsSelect = document.getElementById('compareNsSelect');
-    const selectedNs = nsSelect ? nsSelect.value : (activeNamespaceId || '');
-    const dataId = document.getElementById('compareDataId').value.trim();
-    const group = document.getElementById('compareGroup').value.trim() || 'DEFAULT_GROUP';
     const token = localStorage.getItem('nacos_access_token') || '';
-    const tenantParam = (selectedNs === 'public' || !selectedNs) ? '' : selectedNs;
 
-    const leftContent = await fetchContentByNid(leftNid, dataId, group, tenantParam, token);
-    const rightContent = await fetchContentByNid(rightNid, dataId, group, tenantParam, token);
+    const leftContent = await fetchContentByNid(leftNid, token);
+    const rightContent = await fetchContentByNid(rightNid, token);
 
     document.getElementById('leftPaneTitle').innerText = `← ${leftContent.time}`;
     document.getElementById('rightPaneTitle').innerText = `→ ${rightContent.time}`;
@@ -176,10 +136,10 @@ async function triggerDiffRender() {
     renderDiffViews(leftContent.text, rightContent.text);
 }
 
-// 根据 NID 缓存或拉取真实文本
-async function fetchContentByNid(nid, dataId, group, tenant, token) {
+// 安全拉取 NID 文本（修复 caused: Failed to... 造成的 JSON 异常）
+async function fetchContentByNid(nid, token) {
     if (nid === 'current') {
-        return { text: historyDetailMap['current'].content, time: '当前最新状态' };
+        return historyDetailMap['current'];
     }
 
     if (historyDetailMap[nid]) {
@@ -190,18 +150,30 @@ async function fetchContentByNid(nid, dataId, group, tenant, token) {
     const timeInfo = item ? `修改时间: ${item.lastModifiedTime}` : `NID: ${nid}`;
 
     try {
-        const detailUrl = `${SERVER_URL}/nacos/v1/cs/history?dataId=${encodeURIComponent(dataId)}&group=${encodeURIComponent(group)}&tenant=${encodeURIComponent(tenant)}&nid=${nid}&accessToken=${token}`;
+        const detailUrl = `${SERVER_URL}/nacos/v1/cs/history?dataId=${encodeURIComponent(currentCompareDataId)}&group=${encodeURIComponent(currentCompareGroup)}&tenant=${encodeURIComponent(currentCompareTenant)}&nid=${nid}&accessToken=${token}`;
         const res = await fetch(detailUrl);
         const text = await res.text();
 
         let content = text;
-        try {
-            const json = JSON.parse(text);
-            content = json.content || text;
-        } catch(e) {}
+        
+        // 安全 JSON 解析防御
+        if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+            try {
+                const json = JSON.parse(text);
+                content = json.content !== undefined ? json.content : text;
+            } catch(e) {
+                content = text;
+            }
+        }
+
+        // 如果 Nacos 抛出异常文本（以 caused: 开头）
+        if (content.includes('caused:')) {
+            content = `[!] 读取历史版本明细受限或记录已清除\n服务端响应信息:\n${content}`;
+        }
 
         historyDetailMap[nid] = { text: content, time: timeInfo };
         return historyDetailMap[nid];
+
     } catch(e) {
         return { text: `[!] 拉取版本失败: ${e.message}`, time: timeInfo };
     }

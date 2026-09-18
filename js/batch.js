@@ -22,7 +22,7 @@ async function batchSearch() {
     const ca = document.getElementById('batchCheckAll');
 
     if (sm) sm.style.display = 'none';
-    if (tb) tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#00f0ff;">搜索中...</td></tr>';
+    if (tb) tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#00f0ff;">搜索中...</td></tr>';
     if (cnt) cnt.innerText = '0';
     if (cc) cc.innerText = '0';
     if (ca) ca.checked = false;
@@ -117,7 +117,7 @@ function renderBatchTable(list) {
     const cnt = document.getElementById('batchTotalCount');
     if (cnt) cnt.innerText = list ? list.length : 0;
     if (!list || list.length === 0) {
-        tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#8b949e;padding:30px;">没有匹配到任何配置</td></tr>';
+        tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#8b949e;padding:30px;">没有匹配到任何配置</td></tr>';
         batchUpdateCheckedCount();
         return;
     }
@@ -129,9 +129,12 @@ function renderBatchTable(list) {
             <td style="color:#00ff88;font-weight:bold;">${batchEscape(item.dataId)}</td>
             <td><span style="background:rgba(0,240,255,0.1);padding:2px 8px;border-radius:3px;color:#00f0ff;">${batchEscape(item.group)}</span></td>
             <td style="color:#f85149;font-weight:bold;">${item.matchCount} 处</td>
+            <td><button class="btn-detail" style="background:#21262d;border:1px solid #58a6ff;color:#58a6ff;padding:3px 10px;border-radius:4px;cursor:pointer;font-size:12px;">查看</button></td>
         `;
         const cb = tr.querySelector('.batch-row-check');
         cb.onchange = () => { item.checked = cb.checked; batchUpdateCheckedCount(); };
+        const db = tr.querySelector('.btn-detail');
+        db.onclick = () => batchShowDetail(i);
         tb.appendChild(tr);
     });
     batchUpdateCheckedCount();
@@ -157,7 +160,7 @@ function batchReset() {
     });
     batchResults = [];
     const tb = document.getElementById('batchTableBody');
-    if (tb) tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#8b949e;padding:30px;">填入关键词后点搜索</td></tr>';
+    if (tb) tb.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#8b949e;padding:30px;">填入关键词后点搜索</td></tr>';
     const c = document.getElementById('batchTotalCount'); if (c) c.innerText = '0';
     const cc = document.getElementById('batchCheckedCount'); if (cc) cc.innerText = '0';
     const ca = document.getElementById('batchCheckAll'); if (ca) ca.checked = false;
@@ -226,4 +229,67 @@ async function batchReplaceSelected() {
 
     batchResults = batchResults.filter(x => x.matchCount > 0);
     renderBatchTable(batchResults);
+}
+
+/* ---------- 详情弹窗 ---------- */
+function batchShowDetail(idx) {
+    const item = batchResults[idx];
+    if (!item) return;
+    const keyword = (document.getElementById('batchKeyword')?.value || '').trim();
+    if (!keyword) { alert('请先填关键词'); return; }
+
+    /* 复用/创建 modal */
+    let modal = document.getElementById('batchDetailModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'batchDetailModal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width:1100px;">
+                <div class="modal-header">
+                    <span id="batchDetailTitle">-</span>
+                    <button onclick="document.getElementById('batchDetailModal').classList.remove('active')">×</button>
+                </div>
+                <div id="batchDetailBody" style="flex:1;overflow:auto;background:#0d1117;padding:16px;font-family:Consolas,Monaco,'Courier New',monospace;font-size:12.5px;line-height:1.6;white-space:pre;color:#e6edf3;max-height:70vh;"></div>
+                <div class="modal-footer" style="justify-content:space-between;">
+                    <span id="batchDetailMeta" style="color:#8b949e;font-size:12px;"></span>
+                    <button onclick="document.getElementById('batchDetailModal').classList.remove('active')">关 闭</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    const title = document.getElementById('batchDetailTitle');
+    if (title) title.innerText = `${item.nsLabel}  /  ${item.group}  /  ${item.dataId}`;
+
+    const escHtml = (str) => String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+    const escKw = escHtml(keyword);
+    /* 正则转义关键词 */
+    const reSrc = escKw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(reSrc, 'g');
+
+    /* 按行处理，每行独立高亮，方便加行号 */
+    const lines = String(item.content || '').split('\n');
+    const markStyle = 'background:rgba(248,81,73,0.55);color:#fff;padding:1px 4px;border-radius:2px;font-weight:bold;';
+    const lineNoStyle = 'color:#8b949e;user-select:none;display:inline-block;width:50px;text-align:right;padding-right:12px;';
+
+    let html = '';
+    lines.forEach((line, i) => {
+        const escLine = escHtml(line);
+        const hi = escLine.replace(re, (m) => `<mark style="${markStyle}">${m}</mark>`);
+        html += `<span style="${lineNoStyle}">${i + 1}</span>${hi}\n`;
+    });
+
+    const body = document.getElementById('batchDetailBody');
+    if (body) body.innerHTML = html || '<span style="color:#8b949e;">（内容为空）</span>';
+
+    const meta = document.getElementById('batchDetailMeta');
+    if (meta) meta.innerText = `共 ${item.matchCount} 处匹配`;
+
+    modal.classList.add('active');
 }

@@ -187,7 +187,7 @@ function fillLeftVersionSelect(historyItems) {
 }
 
 /* ---------- 加载左侧选中版本内容 ---------- */
-function applyLeftVersionByIndex(idx) {
+async function applyLeftVersionByIndex(idx) {
     const ta = document.getElementById('leftText');
     const meta = document.getElementById('leftMeta');
     if (!ta) return;
@@ -198,8 +198,28 @@ function applyLeftVersionByIndex(idx) {
         refreshCompareDiff();
         return;
     }
-    ta.value = item.content || '';
+
+    // 先用元数据填充，避免界面空白
+    ta.value = '加载中...';
     if (meta) meta.innerText = formatSimpleTime(item.lastModifiedTime || item.createdTime) + (idx === 0 ? ' · 最新历史版' : '');
+
+    // 通过 nid 获取完整的配置内容
+    const token = localStorage.getItem('nacos_access_token') || '';
+    const cleanUrl = (localStorage.getItem('nacos_server_url') || '').replace(/\/+$/, '');
+    const nsId = document.getElementById('leftNs')?.value.trim() || '';
+    const tenant = (nsId === 'public' || !nsId) ? '' : nsId;
+    const dataId = document.getElementById('leftDataId')?.value.trim() || '';
+    const group = document.getElementById('leftGroup')?.value.trim() || 'DEFAULT_GROUP';
+
+    try {
+        const url = `${cleanUrl}/nacos/v1/cs/history?nid=${encodeURIComponent(item.id)}&dataId=${encodeURIComponent(dataId)}&group=${encodeURIComponent(group)}&tenant=${encodeURIComponent(tenant)}&accessToken=${encodeURIComponent(token)}`;
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const detail = await resp.json();
+        ta.value = detail.content || '';
+    } catch (err) {
+        ta.value = `[!] 获取历史内容失败: ${err.message}`;
+    }
     refreshCompareDiff();
 }
 
@@ -257,7 +277,7 @@ async function loadPanel(side, mode) {
         leftHistoryList = items;
         fillLeftVersionSelect(items);
         if (items.length > 0) {
-            applyLeftVersionByIndex(0);
+            await applyLeftVersionByIndex(0);
         } else {
             ta.value = '（没有历史版本）';
             if (metaEl) metaEl.innerText = '无历史记录';
@@ -308,15 +328,22 @@ async function rollbackLeftVersion() {
     const tenant = (nsId === 'public' || !nsId) ? '' : nsId;
 
     try {
-        // Nacos 回滚接口：POST /nacos/v1/cs/history/configs
+        // 1. 获取历史版本内容
+        const detailUrl = `${cleanUrl}/nacos/v1/cs/history?nid=${encodeURIComponent(item.id)}&dataId=${encodeURIComponent(dataId)}&group=${encodeURIComponent(group)}&tenant=${encodeURIComponent(tenant)}&accessToken=${encodeURIComponent(token)}`;
+        const detailResp = await fetch(detailUrl);
+        if (!detailResp.ok) throw new Error('获取历史内容失败: HTTP ' + detailResp.status);
+        const detail = await detailResp.json();
+        const content = detail.content || '';
+
+        // 2. 通过发布配置实现回滚
         const body = new URLSearchParams({
-            id: item.id,
             dataId: dataId,
             group: group,
             tenant: tenant,
+            content: content,
             accessToken: token
         });
-        const resp = await fetch(`${cleanUrl}/nacos/v1/cs/history/configs`, {
+        const resp = await fetch(`${cleanUrl}/nacos/v1/cs/configs`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: body

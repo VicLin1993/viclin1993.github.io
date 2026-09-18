@@ -1,11 +1,7 @@
-/**
- * ========================================================
- * 临时调试日志控制台 (Debug Console)
- * 特性：固定悬浮底部、全页面通用、全自动捕获未处理报错与日志
- * 未来移除方法：直接在 index.html 中删除本脚本引用即可
- * ========================================================
- */
 (function() {
+    // 限制最大日志条数，防止页面卡死
+    const MAX_LOG_COUNT = 200;
+
     // 注入 CSS 样式
     const style = document.createElement('style');
     style.innerHTML = `
@@ -99,10 +95,35 @@
         window.addEventListener('DOMContentLoaded', () => document.body.appendChild(panel));
     }
 
+    // 安全序列化对象，防止循环引用崩溃
+    function safeFormatArg(arg) {
+        if (arg === null) return 'null';
+        if (arg === undefined) return 'undefined';
+        if (typeof arg === 'string') return arg;
+        if (typeof arg === 'function') return `[Function: ${arg.name || 'anonymous'}]`;
+        if (arg instanceof Error) return `${arg.name}: ${arg.message}\n${arg.stack || ''}`;
+        
+        try {
+            return JSON.stringify(arg, (key, value) => {
+                if (typeof value === 'object' && value !== null) {
+                    if (value instanceof HTMLElement) return `<${value.tagName.toLowerCase()} id="${value.id}" class="${value.className}">`;
+                }
+                return value;
+            }, 2);
+        } catch (e) {
+            return String(arg);
+        }
+    }
+
     // 全局日志打印辅助
     window.appendDebugLog = function(msg, type = 'info') {
         const body = document.getElementById('debug-console-body');
         if (!body) return;
+
+        // 超过上限移除最早的日志，防止卡死
+        while (body.children.length >= MAX_LOG_COUNT) {
+            body.removeChild(body.firstChild);
+        }
 
         const now = new Date();
         const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}.${String(now.getMilliseconds()).padStart(3,'0')}`;
@@ -124,6 +145,8 @@
     window.toggleDebugConsole = function() {
         const p = document.getElementById('debug-console-panel');
         const btn = document.getElementById('debug-toggle-btn');
+        if (!p || !btn) return;
+
         if (p.classList.contains('minimized')) {
             p.classList.remove('minimized');
             btn.innerText = '最小化';
@@ -137,12 +160,29 @@
         const body = document.getElementById('debug-console-body');
         if (!body) return;
         const text = body.innerText;
-        navigator.clipboard.writeText(text).then(() => {
-            alert('日志已成功复制到剪贴板！');
-        }).catch(() => {
-            alert('复制失败，请手动选中日志文本进行复制。');
-        });
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('✓ 日志已成功复制到剪贴板！');
+            }).catch(() => fallbackCopy(text));
+        } else {
+            fallbackCopy(text);
+        }
     };
+
+    function fallbackCopy(text) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+            document.execCommand('copy');
+            alert('✓ 日志已成功复制到剪贴板！');
+        } catch (e) {
+            alert('[!] 复制失败，请手动选中面板中的文本进行复制。');
+        }
+        document.body.removeChild(textarea);
+    }
 
     function escapeHtml(str) {
         return String(str)
@@ -151,27 +191,32 @@
             .replace(/>/g, '&gt;');
     }
 
-    // 捕获未处理的 JS 异常 (例如函数未定义、语法错误等)
+    // 捕获未处理的 JS 异常
     window.addEventListener('error', function(e) {
-        const msg = `[JS Error] ${e.message} at ${e.filename}:${e.lineno}:${e.colno}`;
+        const msg = `[JS Error] ${e.message} at ${e.filename || 'inline'}:${e.lineno}:${e.colno}`;
         window.appendDebugLog(msg, 'error');
     });
 
-    // 捕获异步 Promise Reject 报错 (例如 fetch 异常/接口报错)
+    // 捕获异步 Promise Reject 报错
     window.addEventListener('unhandledrejection', function(e) {
-        const msg = `[Promise Error] Reason: ${e.reason ? (e.reason.message || JSON.stringify(e.reason)) : 'Unknown'}`;
+        const reason = e.reason;
+        const msg = `[Promise Error] ${reason ? (reason.stack || reason.message || safeFormatArg(reason)) : 'Unknown Reject'}`;
         window.appendDebugLog(msg, 'error');
     });
 
-    // 拦截 console.error
-    const originalConsoleError = console.error;
-    console.error = function(...args) {
-        originalConsoleError.apply(console, args);
-        window.appendDebugLog(args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' '), 'error');
-    };
+    // 拦截控制台原生的 log / warn / error
+    ['log', 'warn', 'error'].forEach(level => {
+        const original = console[level];
+        console[level] = function(...args) {
+            original.apply(console, args);
+            const msg = args.map(a => safeFormatArg(a)).join(' ');
+            const typeMap = { log: 'info', warn: 'warn', error: 'error' };
+            window.appendDebugLog(msg, typeMap[level]);
+        };
+    });
 
     // 初始提示
     setTimeout(() => {
-        window.appendDebugLog('调试面板已启动，等待点击或抓取报错...', 'info');
-    }, 500);
+        window.appendDebugLog('🚀 调试面板已启动，已接入全局日志与报错监听...', 'info');
+    }, 300);
 })();

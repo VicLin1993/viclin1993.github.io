@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TERMINAL ACCESS // DASHBOARD</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        body {
+            background-color: #0d1117;
+            background-image: 
+                radial-gradient(circle at 20% 20%, rgba(0, 240, 255, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 80% 80%, rgba(0, 255, 136, 0.05) 0%, transparent 40%),
+                linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 30px 30px, 30px 30px;
+            color: #00f0ff;
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.3);
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+        }
+
+        header h1 {
+            font-size: 20px;
+            color: #00ff88;
+            letter-spacing: 2px;
+            text-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+        }
+
+        .server-config {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(13, 22, 33, 0.8);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            padding: 8px 12px;
+            border-radius: 4px;
+        }
+
+        .server-config input {
+            background: transparent;
+            border: none;
+            color: #00ff88;
+            outline: none;
+            font-size: 13px;
+            width: 200px;
+        }
+
+        .btn-action {
+            background: transparent;
+            border: 1px solid #00f0ff;
+            color: #00f0ff;
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-action:hover {
+            background: #00f0ff;
+            color: #0d1117;
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.6);
+        }
+
+        .section-title {
+            font-size: 14px;
+            color: #58a6ff;
+            margin-bottom: 16px;
+            letter-spacing: 1px;
+        }
+
+        /* Namespace 每行 10 个卡片布局 */
+        .namespace-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 12px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 1600px) {
+            .namespace-grid { grid-template-columns: repeat(5, 1fr); }
+        }
+        @media (max-width: 900px) {
+            .namespace-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        .ns-card {
+            background: rgba(13, 22, 33, 0.7);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 4px;
+            padding: 12px 10px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            word-break: break-all;
+        }
+
+        .ns-card:hover {
+            border-color: #00ff88;
+            box-shadow: 0 0 12px rgba(0, 255, 136, 0.4);
+            transform: translateY(-2px);
+            background: rgba(0, 255, 136, 0.08);
+        }
+
+        .ns-card.active {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.15);
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.6);
+        }
+
+        .ns-name {
+            font-size: 13px;
+            font-weight: bold;
+            color: #00ff88;
+            margin-bottom: 6px;
+        }
+
+        .ns-id {
+            font-size: 10px;
+            color: #8b949e;
+        }
+
+        .ns-count {
+            margin-top: 6px;
+            font-size: 10px;
+            color: #00f0ff;
+            opacity: 0.8;
+        }
+
+        .status-msg {
+            font-size: 13px;
+            color: #ff5555;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>SYSTEM DASHBOARD // NACOS TERMINAL</h1>
+    <div class="server-config">
+        <label style="font-size: 12px;">SERVER:</label>
+        <input type="text" id="nacosServer" placeholder="http://localhost:8848">
+        <button class="btn-action" onclick="fetchNamespaces()">FETCH NAMESPACES</button>
+        <button class="btn-action" style="border-color: #ff5555; color: #ff5555;" onclick="logout()">LOGOUT</button>
+    </div>
+</header>
+
+<main>
+    <div class="section-title">> SELECT NAMESPACE [ GRID 1x10 ]</div>
+    <div id="namespaceContainer" class="namespace-grid">
+        <!-- Namespace 动态加载到这里 -->
+    </div>
+    <div id="statusMsg" class="status-msg"></div>
+</main>
+
+<script>
+    // 页面加载时初始化服务端地址
+    window.addEventListener('DOMContentLoaded', () => {
+        // 检查登录状态
+        if (localStorage.getItem('is_authenticated') !== 'true') {
+            window.location.href = 'index.html';
+            return;
+        }
+
+        const savedServer = localStorage.getItem('nacos_server_url') || 'http://localhost:8848';
+        document.getElementById('nacosServer').value = savedServer;
+
+        fetchNamespaces();
+    });
+
+    // 获取所有 Namespace
+    async function fetchNamespaces() {
+        const serverUrl = document.getElementById('nacosServer').value.replace(/\/$/, '');
+        localStorage.setItem('nacos_server_url', serverUrl);
+        
+        const container = document.getElementById('namespaceContainer');
+        const statusMsg = document.getElementById('statusMsg');
+        
+        container.innerHTML = '<div style="color: #00f0ff; font-size: 12px;">Loading Namespaces...</div>';
+        statusMsg.innerText = '';
+
+        const token = localStorage.getItem('nacos_access_token') || '';
+
+        try {
+            // Nacos Console 获取 namespaces API
+            const response = await fetch(`${serverUrl}/nacos/v1/console/namespaces?accessToken=${token}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP Error: ${response.status}`);
+            }
+
+            const resData = await response.json();
+            const list = resData.data || resData || [];
+
+            renderNamespaces(list);
+        } catch (err) {
+            container.innerHTML = '';
+            statusMsg.innerText = `[!] FETCH ERROR: ${err.message}. 提示：若涉及跨域，请确认 Nacos 后台已开启 CORS 或开启代理。`;
+            
+            // 加载模拟测试数据（若暂无真实连通）
+            renderMockNamespaces();
+        }
+    }
+
+    // 渲染 Namespace 列表（横向每行 10 个卡片）
+    function renderNamespaces(list) {
+        const container = document.getElementById('namespaceContainer');
+        container.innerHTML = '';
+
+        if (!list || list.length === 0) {
+            container.innerHTML = '<div style="color: #8b949e;">未检测到任何 Namespace</div>';
+            return;
+        }
+
+        list.forEach((item, index) => {
+            const card = document.createElement('div');
+            card.className = 'ns-card';
+            if (index === 0) card.classList.add('active'); // 默认选中第一个
+
+            const nsName = item.namespaceShowName || item.namespace || 'Public';
+            const nsId = item.namespace || 'public';
+            const configCount = item.configCount !== undefined ? `${item.configCount} Configs` : '';
+
+            card.innerHTML = `
+                <div class="ns-name">${nsName}</div>
+                <div class="ns-id">${nsId}</div>
+                ${configCount ? `<div class="ns-count">${configCount}</div>` : ''}
+            `;
+
+            card.onclick = () => {
+                document.querySelectorAll('.ns-card').forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+                onSelectNamespace(nsId, nsName);
+            };
+
+            container.appendChild(card);
+        });
+    }
+
+    // 无法连通 Nacos 时的备用展示（演示效果）
+    function renderMockNamespaces() {
+        const mockList = [
+            { namespaceShowName: 'Public', namespace: 'public', configCount: 12 },
+            { namespaceShowName: 'SIT', namespace: 'stockus-k8s-sit', configCount: 45 },
+            { namespaceShowName: 'QAT', namespace: 'stockus-k8s-qat', configCount: 38 },
+            { namespaceShowName: 'DEV', namespace: 'v2test-dev', configCount: 22 },
+            { namespaceShowName: 'PROD', namespace: 'prod-main', configCount: 89 },
+            { namespaceShowName: 'TEST-1', namespace: 'test-1', configCount: 5 },
+            { namespaceShowName: 'TEST-2', namespace: 'test-2', configCount: 3 },
+            { namespaceShowName: 'STAGE', namespace: 'staging-env', configCount: 17 },
+            { namespaceShowName: 'DEMO', namespace: 'demo-app', configCount: 8 },
+            { namespaceShowName: 'PAYMENT', namespace: 'payment-center', configCount: 14 },
+            { namespaceShowName: 'USER', namespace: 'user-center', configCount: 20 }
+        ];
+        renderNamespaces(mockList);
+    }
+
+    // Namespace 被点击后的回调函数（下一步开发列表搜寻）
+    function onSelectNamespace(nsId, nsName) {
+        console.log('Selected Namespace:', nsId, nsName);
+        // 下一步将在下方渲染搜索栏与 YAML 匹配列表
+    }
+
+    function logout() {
+        localStorage.removeItem('is_authenticated');
+        window.location.href = 'index.html';
+    }
+</script>
+
+</body>
+</html>

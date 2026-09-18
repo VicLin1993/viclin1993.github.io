@@ -4,41 +4,65 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>秘密调整基地 // 控制台</title>
-    <!-- 1. 最先引入本地环境配置 -->
+    <!-- 1. 优先加载环境配置 -->
     <script src="./env.js"></script>
-    <script>
-        // 核心兜底逻辑：在页面所有脚本加载前，强行将 env.js 里的地址同步入 localStorage
-        (function() {
-            if (window.ENV && window.ENV.SERVER_URL) {
-                localStorage.setItem('nacos_server_url', window.ENV.SERVER_URL);
-            }
-        })();
-    </script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: #0d1117; color: #c9d1d9; padding: 20px; font-size: 14px; }
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #30363d; padding-bottom: 15px; margin-bottom: 20px; }
+        h1 { font-size: 20px; color: #58a6ff; }
+        .user-info { font-size: 13px; color: #8b949e; }
+        .btn-logout { background: #21262d; border: 1px solid #30363d; color: #f85149; padding: 4px 12px; border-radius: 4px; cursor: pointer; }
+        .btn-logout:hover { background: #b82525; color: #fff; }
+        .panel-box { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 20px; margin-bottom: 20px; }
+        .status-bar { color: #3fb950; font-weight: bold; margin-bottom: 10px; }
+    </style>
 </head>
 <body>
 
+<header>
+    <h1>秘密调整基地 // Nacos 管理控制台</h1>
+    <div class="user-info">
+        已连接: <span id="currentServer" style="color:#58a6ff;">-</span>
+        <button class="btn-logout" onclick="logout()" style="margin-left: 10px;">退出接入</button>
+    </div>
+</header>
+
+<div class="panel-box">
+    <div class="status-bar">● 系统就绪 (环境配置已加载)</div>
+    <p>Nacos 服务端地址: <strong id="serverDisplay" style="color: #00f0ff;">读取中...</strong></p>
+</div>
+
+<!-- 比对弹窗容器或其他挂载容器 -->
+<div id="compareModalContainer"></div>
+
 <script>
-    // 权限校验
+    // 1. 权限拦截
     if (localStorage.getItem('is_authenticated') !== 'true') {
         window.location.href = 'index.html';
     }
 
-    // 全局使用的 Nacos 地址，优先读取 env.js，其次读取缓存
-    const SERVER_URL = (window.ENV && window.ENV.SERVER_URL) 
-        || localStorage.getItem('nacos_server_url') 
-        || '';
-        
-    const PAGE_SIZE = (window.ENV && window.ENV.PAGE_SIZE) || 100;
+    // 2. 环境配置安全获取
+    const env = window.ENV || {};
+    const SERVER_URL = env.SERVER_URL || localStorage.getItem('nacos_server_url') || '';
+    
+    // 确保本地缓存已更新
+    if (SERVER_URL) {
+        localStorage.setItem('nacos_server_url', SERVER_URL);
+    }
 
-    if (!SERVER_URL) {
-        console.error('⚠️ 未检测到有效的 Nacos 后端服务地址，请检查 env.js 文件！');
+    // 渲染页面信息
+    document.getElementById('currentServer').innerText = SERVER_URL || '未配置地址';
+    document.getElementById('serverDisplay').innerText = SERVER_URL || '未配置地址';
+
+    function logout() {
+        localStorage.removeItem('is_authenticated');
+        localStorage.removeItem('nacos_access_token');
+        window.location.href = 'index.html';
     }
 </script>
 
-<div id="app">
-    <!-- 你的 dashboard 原有 DOM 结构 -->
-</div>
-
+<!-- 加载其他功能组件与调试日志工具 -->
 <script src="js/compare.js"></script>
 <script src="js/debug-logger.js"></script>
 </body>

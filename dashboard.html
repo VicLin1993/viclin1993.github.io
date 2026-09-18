@@ -205,7 +205,7 @@
     <div class="compare-panels">
         <div class="compare-panel">
             <div class="panel-toolbar">
-                <select id="qLeftNs" class="ns-select" title="Namespace"></select>
+                <input id="qLeftNs" placeholder="--请选择项目--" list="compareNsList">
                 <input id="qLeftGroup" placeholder="Group" list="compareGroupList">
                 <input id="qLeftDataId" placeholder="Data ID" list="compareDataIdList">
                 <button onclick="qLoadPanel('left')">加载</button>
@@ -221,7 +221,7 @@
         </div>
         <div class="compare-panel">
             <div class="panel-toolbar">
-                <select id="qRightNs" class="ns-select" title="Namespace"></select>
+                <input id="qRightNs" placeholder="--请选择项目--" list="compareNsList">
                 <input id="qRightGroup" placeholder="Group" list="compareGroupList">
                 <input id="qRightDataId" placeholder="Data ID" list="compareDataIdList">
                 <button onclick="qLoadPanel('right')">加载</button>
@@ -237,6 +237,7 @@
             </div>
         </div>
     </div>
+    <datalist id="compareNsList"></datalist>
     <datalist id="compareGroupList"></datalist>
     <datalist id="compareDataIdList"></datalist>
 </section>

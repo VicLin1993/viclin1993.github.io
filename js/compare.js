@@ -70,22 +70,21 @@ async function _ensureNsLoaded() {
         return list;
     } catch (e) { return []; }
 }
-function _fillNsSelect(sel) {
-    if (!sel) return;
-    const prev = sel.value;
+function _fillNsDatalist() {
+    const dl = document.getElementById('compareNsList');
+    if (!dl) return;
     const list = (typeof rawNamespaceList !== 'undefined' && Array.isArray(rawNamespaceList)) ? rawNamespaceList : [];
-    sel.innerHTML = '';
+    dl.innerHTML = '';
     const o0 = document.createElement('option'); o0.value = ''; o0.textContent = 'public (默认)';
-    sel.appendChild(o0);
+    dl.appendChild(o0);
     list.forEach(ns => {
         const rawId = ns.namespace || '';
         if (!rawId) return;
         const o = document.createElement('option');
         o.value = rawId;
-        o.textContent = `${ns.namespaceShowName || rawId} (${rawId})`;
-        sel.appendChild(o);
+        o.textContent = ns.namespaceShowName || rawId;
+        dl.appendChild(o);
     });
-    if (prev !== '' && Array.from(sel.options).some(o => o.value === prev)) sel.value = prev;
 }
 async function _refreshDatalists(nsId) {
     const gL = document.getElementById('compareGroupList');
@@ -254,8 +253,16 @@ function qRefreshDiff() {
 }
 async function qInit() {
     await _ensureNsLoaded();
-    _fillNsSelect(document.getElementById('qLeftNs'));
-    _fillNsSelect(document.getElementById('qRightNs'));
+    _fillNsDatalist();
+    // 左 NS 变化 -> 同步到右侧
+    const lNs = document.getElementById('qLeftNs');
+    const rNs = document.getElementById('qRightNs');
+    if (lNs && rNs && !lNs._synced) {
+        lNs._synced = true;
+        const sync = () => { rNs.value = lNs.value; };
+        lNs.addEventListener('input', sync);
+        lNs.addEventListener('change', sync);
+    }
 }
 async function qLoadPanel(side) {
     const pre = side === 'left' ? 'qLeft' : 'qRight';

@@ -1,11 +1,11 @@
 /**
  * ========================================================
  * 模块：js/compare.js
- * 职责：点击对比时，跳转并匹配“配置查询”分页的参数，以查询分页界面格式展示对比
+ * 职责：处理对比点击逻辑，跳转并同步配置查询（Query）分页
  * ========================================================
  */
 
-// 统一时间格式化函数：YYYY-MM-DD HH:mm:ss
+// 统一时间格式化：YYYY-MM-DD HH:mm:ss
 function formatSimpleTime(timeInput) {
     if (!timeInput) return '未知时间';
     if (typeof timeInput === 'string' && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(timeInput.trim())) {
@@ -29,15 +29,13 @@ function formatSimpleTime(timeInput) {
 }
 
 /**
- * 点击对比的主入口
- * 作用：跳转至查询 Tab，自动填入 Namespace, Data ID, Group 并检索渲染
+ * 点击对比入口：无缝切至“配置查询”Tab，匹配 Namespace / Data ID / Group
  */
 async function compareToQueryTab(p1, p2) {
     try {
         let targetDataId = '';
         let targetGroup = 'DEFAULT_GROUP';
 
-        // 参数解析兼容
         if (typeof p1 === 'object' && p1 !== null) {
             targetDataId = p1.dataId || p1.id || '';
             targetGroup = p1.group || 'DEFAULT_GROUP';
@@ -50,50 +48,46 @@ async function compareToQueryTab(p1, p2) {
             targetGroup = p2 || 'DEFAULT_GROUP';
         }
 
-        window.appendDebugLog && window.appendDebugLog(`[对比发起] 跳转至查询页，匹配 Data ID: ${targetDataId}, Group: ${targetGroup}`, 'info');
-
-        // 1. 自动切换到“配置查询”Tab 分页
-        const queryTabBtn = document.querySelector('[onclick*="query"], [data-tab="query"], #tab-query-btn, .tab-btn-query');
-        if (queryTabBtn) {
-            queryTabBtn.click();
-        } else if (typeof switchTab === 'function') {
-            switchTab('query');
-        } else if (typeof showTab === 'function') {
-            showTab('query');
+        if (window.appendDebugLog) {
+            window.appendDebugLog(`[对比跳转] DataID=${targetDataId}, Group=${targetGroup}`, 'info');
         }
 
-        // 2. 匹配并填充“配置查询”分页的输入框与下拉选单
-        setTimeout(async () => {
-            const dataIdInput = document.getElementById('queryDataId') || document.getElementById('searchDataId') || document.querySelector('input[placeholder*="Data ID"]');
-            if (dataIdInput) {
-                dataIdInput.value = targetDataId;
+        // 1. 自动切换 Tab
+        const tabs = document.querySelectorAll('.tab-btn, [data-tab]');
+        tabs.forEach(tab => {
+            if (tab.innerText.includes('查询') || tab.getAttribute('data-tab') === 'query') {
+                tab.click();
             }
+        });
 
-            const groupInput = document.getElementById('queryGroup') || document.getElementById('searchGroup') || document.querySelector('input[placeholder*="Group"]');
-            if (groupInput) {
-                groupInput.value = targetGroup;
-            }
+        // 2. 补全与刷新 Namespace 下拉选单（防止无数据）
+        if (typeof loadNamespaces === 'function') {
+            await loadNamespaces();
+        }
 
-            // 如果查询页面有执行查询的按钮，自动触发点击
-            const searchBtn = document.getElementById('btnSearch') || document.getElementById('queryBtn') || document.querySelector('.btn-query, button[onclick*="search"]');
+        // 3. 填入参数并触发查询
+        setTimeout(() => {
+            const dataInput = document.getElementById('queryDataId') || document.querySelector('input[placeholder*="Data ID"]');
+            if (dataInput) dataInput.value = targetDataId;
+
+            const groupInput = document.getElementById('queryGroup') || document.querySelector('input[placeholder*="Group"]');
+            if (groupInput) groupInput.value = targetGroup;
+
+            // 触发查询按钮点击
+            const searchBtn = document.getElementById('btnSearch') || document.querySelector('.btn-query, button[onclick*="search"], button[onclick*="query"]');
             if (searchBtn) {
                 searchBtn.click();
-            } else if (typeof executeQuery === 'function') {
-                executeQuery();
-            } else if (typeof fetchConfigDetail === 'function') {
-                fetchConfigDetail(targetDataId, targetGroup);
             }
-        }, 100);
+        }, 150);
 
     } catch (err) {
-        console.error('compareToQueryTab 报错:', err);
+        console.error('compareToQueryTab 异常:', err);
         if (window.appendDebugLog) {
-            window.appendDebugLog(`[对比失败] ${err.message}`, 'error');
+            window.appendDebugLog(`[跳转异常] ${err.message}`, 'error');
         }
     }
 }
 
-// 别名兼容
 function openCompareModal(p1, p2) {
     compareToQueryTab(p1, p2);
 }

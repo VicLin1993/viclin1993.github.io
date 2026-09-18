@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>终端访问 // 秘密调整基地</title>
+    <title>秘密調整基地 // Nacos 登入</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: #0d1117; color: #00f0ff; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
@@ -22,42 +22,40 @@
 
 <div class="login-box">
     <div class="title-area">
-        <h2>秘密调整基地</h2>
-        <p>请输入 Nacos 服务凭证以接入控制台</p>
+        <h2>秘密調整基地</h2>
+        <p>接入真實 Nacos 控制台</p>
     </div>
 
     <form id="loginForm">
         <div class="input-group">
-            <label for="serverUrl">> 服务端地址</label>
-            <input type="text" id="serverUrl" value="http://8.210.71.38:8848" required>
-        </div>
-        <div class="input-group">
-            <label for="username">> 管理账号</label>
+            <label for="username">> 管理帳號</label>
             <input type="text" id="username" value="nacos" autocomplete="off" required>
         </div>
+
         <div class="input-group">
-            <label for="password">> 安全密钥</label>
+            <label for="password">> 安全密鑰</label>
             <input type="password" id="password" value="Ruv6B-WR@SF68g@5" required>
         </div>
-        <button type="submit" class="btn-submit">连 接 控 制 台</button>
+
+        <button type="submit" class="btn-submit">連 接 控 制 台</button>
         <div id="errorMsg" class="error-tip"></div>
     </form>
 </div>
 
 <script>
+    const SERVER_URL = 'https://nacos.wayturnlive.com';
+
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
         e.preventDefault();
 
-        const serverUrl = document.getElementById('serverUrl').value.replace(/\/$/, '');
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
         const errorMsg = document.getElementById('errorMsg');
 
-        // 使用 CORS 代理绕过跨域与 HTTPS 拦截
-        const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(`${serverUrl}/nacos/v1/auth/users/login`);
+        errorMsg.style.display = 'none';
 
         try {
-            const response = await fetch(proxyUrl, {
+            const response = await fetch(`${SERVER_URL}/nacos/v1/auth/users/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: new URLSearchParams({ username, password })
@@ -67,15 +65,15 @@
 
             if (response.ok && data.accessToken) {
                 localStorage.setItem('nacos_access_token', data.accessToken);
-                localStorage.setItem('nacos_server_url', serverUrl);
+                localStorage.setItem('nacos_server_url', SERVER_URL);
                 localStorage.setItem('is_authenticated', 'true');
                 window.location.href = 'dashboard.html';
             } else {
-                errorMsg.innerText = `[!] 登录失败: ${data.message || '账号或密码错误'}`;
+                errorMsg.innerText = `[!] 登入失敗: ${data.message || '帳號或密碼錯誤'}`;
                 errorMsg.style.display = 'block';
             }
         } catch (err) {
-            errorMsg.innerText = `[!] 连接异常: ${err.message}`;
+            errorMsg.innerText = `[!] 連線異常: ${err.message}`;
             errorMsg.style.display = 'block';
         }
     });

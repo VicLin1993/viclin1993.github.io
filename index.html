@@ -1,98 +1,11 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-
-
-
-<script>
-(function() {
-    function initConsole() {
-        if (document.getElementById('debug-console-panel')) return;
-
-        const style = document.createElement('style');
-        style.id = 'debug-console-style';
-        style.innerHTML = `
-            #debug-console-panel {
-                position: fixed !important; bottom: 0 !important; left: 0 !important; width: 100% !important; height: 180px !important;
-                background: #0d1117 !important; border-top: 2px solid #30363d !important; box-shadow: 0 -4px 12px rgba(0,0,0,0.5) !important;
-                z-index: 9999999 !important; font-family: monospace !important; font-size: 12px !important; display: flex !important; flex-direction: column !important;
-            }
-            #debug-console-panel.minimized { height: 30px !important; }
-            #debug-console-header {
-                background: #161b22 !important; color: #58a6ff !important; padding: 4px 12px !important; display: flex !important;
-                justify-content: space-between !important; align-items: center !important; border-bottom: 1px solid #30363d !important;
-            }
-            #debug-console-header button {
-                background: #21262d !important; color: #c9d1d9 !important; border: 1px solid #30363d !important; padding: 2px 6px !important;
-                margin-left: 6px !important; border-radius: 4px !important; cursor: pointer !important; font-size: 11px !important;
-            }
-            #debug-console-body {
-                flex: 1 !important; overflow-y: auto !important; padding: 8px 12px !important; color: #e6edf3 !important; line-height: 1.4 !important;
-                white-space: pre-wrap !important; word-break: break-all !important;
-            }
-            .log-item.error { color: #f85149 !important; }
-            .log-item.info { color: #58a6ff !important; }
-        `;
-        document.head.appendChild(style);
-
-        const panel = document.createElement('div');
-        panel.id = 'debug-console-panel';
-        panel.innerHTML = `
-            <div id="debug-console-header">
-                <b>🐞 调试日志控制台 (全局抓取)</b>
-                <div>
-                    <button onclick="window.copyDebugLogs()">复制日志</button>
-                    <button onclick="document.getElementById('debug-console-body').innerHTML=''">清空</button>
-                    <button id="debug-btn-toggle" onclick="window.toggleDebugConsole()">最小化</button>
-                </div>
-            </div>
-            <div id="debug-console-body"></div>
-        `;
-
-        if (document.body) document.body.appendChild(panel);
-    }
-
-    setInterval(() => {
-        if (!document.getElementById('debug-console-panel') && document.body) {
-            initConsole();
-        }
-    }, 500);
-
-    window.appendDebugLog = function(msg, type = 'info') {
-        initConsole();
-        const body = document.getElementById('debug-console-body');
-        if (!body) return;
-        const now = new Date();
-        const t = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-        const item = document.createElement('div');
-        item.className = `log-item ${type}`;
-        item.innerText = `[${t}] ${msg}`;
-        body.appendChild(item);
-        body.scrollTop = body.scrollHeight;
-    };
-
-    window.toggleDebugConsole = function() {
-        const p = document.getElementById('debug-console-panel');
-        const btn = document.getElementById('debug-btn-toggle');
-        p.classList.toggle('minimized');
-        btn.innerText = p.classList.contains('minimized') ? '展开' : '最小化';
-    };
-
-    window.copyDebugLogs = function() {
-        const body = document.getElementById('debug-console-body');
-        navigator.clipboard.writeText(body ? body.innerText : '').then(() => alert('日志已复制！'));
-    };
-
-    window.addEventListener('error', e => window.appendDebugLog(`[JS Error] ${e.message} (${e.filename}:${e.lineno})`, 'error'));
-    window.addEventListener('unhandledrejection', e => window.appendDebugLog(`[Promise Error] ${e.reason ? (e.reason.message || JSON.stringify(e.reason)) : e}`, 'error'));
-})();
-</script>
-
-
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>秘密调整基地 // 身份验证</title>
+    <!-- 最先引入本地环境配置 -->
+    <script src="./env.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: #0d1117; color: #00f0ff; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
@@ -119,12 +32,12 @@
     <form id="loginForm">
         <div class="input-group">
             <label for="username">> 专属账号</label>
-            <input type="text" id="username" value="viclin" autocomplete="off" required>
+            <input type="text" id="username" autocomplete="off" required>
         </div>
 
         <div class="input-group">
             <label for="password">> 身份密钥</label>
-            <input type="password" id="password" value="VV1031529vv!!@@##" required>
+            <input type="password" id="password" required>
         </div>
 
         <button type="submit" class="btn-submit">接 入 控 制 台</button>
@@ -133,14 +46,15 @@
 </div>
 
 <script>
-    // 专属登录凭证配置
-    const USER_ACCOUNT = 'viclin';
-    const USER_PASSWORD = 'VV1031529vv!!@@##';
+    const env = window.ENV || {};
+    const USER_ACCOUNT = env.FRONTEND_USER || '';
+    const USER_PASSWORD = env.FRONTEND_PASS || '';
+    const NACOS_SERVER = env.SERVER_URL || '';
+    const NACOS_USER = env.NACOS_USER || '';
+    const NACOS_PASS = env.NACOS_PASS || '';
 
-    // 后台静默绑定的真实 Nacos 服务端参数
-    const NACOS_SERVER = 'https://nacos.wayturnlive.com';
-    const NACOS_USER = 'nacos';
-    const NACOS_PASS = 'Ruv6B-WR@SF68g@5';
+    if (USER_ACCOUNT) document.getElementById('username').value = USER_ACCOUNT;
+    if (USER_PASSWORD) document.getElementById('password').value = USER_PASSWORD;
 
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -151,14 +65,18 @@
 
         errorMsg.style.display = 'none';
 
-        // 1. 验证前端专属账号密码
         if (inputUser !== USER_ACCOUNT || inputPass !== USER_PASSWORD) {
             errorMsg.innerText = '[!] 验证失败：账号或密钥不正确';
             errorMsg.style.display = 'block';
             return;
         }
 
-        // 2. 账号验证成功后，后台静默请求 Nacos 拿到 AccessToken
+        if (!NACOS_SERVER) {
+            errorMsg.innerText = '[!] 错误：未检测到 env.js 配置的 SERVER_URL';
+            errorMsg.style.display = 'block';
+            return;
+        }
+
         try {
             const response = await fetch(`${NACOS_SERVER}/nacos/v1/auth/users/login`, {
                 method: 'POST',
@@ -183,7 +101,6 @@
         }
     });
 </script>
-
-  <script src="js/debug-logger.js"></script>
+<script src="js/debug-logger.js"></script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NACOS 专属配置控制台</title>
+    <title>秘密调整基地 // Nacos 控制台</title>
     <style>
         * {
             box-sizing: border-box;
@@ -154,10 +154,10 @@
 <body>
 
 <header>
-    <h1>NACOS 专属配置控制台</h1>
+    <h1>秘密调整基地 // NACOS 控制台</h1>
     <div class="server-config">
         <label style="font-size: 13px;">服务地址：</label>
-        <input type="text" id="nacosServer" placeholder="例如: http://localhost:8848">
+        <input type="text" id="nacosServer" placeholder="http://8.210.71.38:8848">
         <button class="btn-action" onclick="fetchNamespaces()">刷新命名空间</button>
         <button class="btn-action" style="border-color: #ff5555; color: #ff5555;" onclick="logout()">退出登录</button>
     </div>
@@ -166,7 +166,7 @@
 <main>
     <div class="section-title">> 选择命名空间（Namespace）</div>
     <div id="namespaceContainer" class="namespace-grid">
-        <!-- 命名空间列表 -->
+        <!-- 动态读取 Nacos 的命名空间列表 -->
     </div>
     <div id="statusMsg" class="status-msg"></div>
 </main>
@@ -178,7 +178,7 @@
             return;
         }
 
-        const savedServer = localStorage.getItem('nacos_server_url') || 'http://localhost:8848';
+        const savedServer = localStorage.getItem('nacos_server_url') || 'http://8.210.71.38:8848';
         document.getElementById('nacosServer').value = savedServer;
 
         fetchNamespaces();
@@ -191,7 +191,7 @@
         const container = document.getElementById('namespaceContainer');
         const statusMsg = document.getElementById('statusMsg');
         
-        container.innerHTML = '<div style="color: #00f0ff; font-size: 13px;">正在加载命名空间列表...</div>';
+        container.innerHTML = '<div style="color: #00f0ff; font-size: 13px;">正在实时拉取 Nacos 命名空间...</div>';
         statusMsg.innerText = '';
 
         const token = localStorage.getItem('nacos_access_token') || '';
@@ -200,7 +200,7 @@
             const response = await fetch(`${serverUrl}/nacos/v1/console/namespaces?accessToken=${token}`);
             
             if (!response.ok) {
-                throw new Error(`网络响应错误: ${response.status}`);
+                throw new Error(`HTTP 异常代码: ${response.status}`);
             }
 
             const resData = await response.json();
@@ -209,10 +209,8 @@
             renderNamespaces(list);
         } catch (err) {
             container.innerHTML = '';
-            statusMsg.innerText = `[!] 获取失败: ${err.message}。提示：本地测试时若连不上可展示下方模拟数据。`;
-            
-            // 连不上真实服务时自动渲染模拟数据供测试
-            renderMockNamespaces();
+            statusMsg.innerText = `[!] 获取数据失败: ${err.message}。提示：可能是浏览器拦截了 HTTPS 向 HTTP(8.210.71.38:8848) 发起的跨域请求。`;
+            console.error(err);
         }
     }
 
@@ -250,29 +248,13 @@
         });
     }
 
-    function renderMockNamespaces() {
-        const mockList = [
-            { namespaceShowName: '默认空间', namespace: 'public', configCount: 12 },
-            { namespaceShowName: 'SIT 环境', namespace: 'stockus-k8s-sit', configCount: 45 },
-            { namespaceShowName: 'QAT 环境', namespace: 'stockus-k8s-qat', configCount: 38 },
-            { namespaceShowName: 'DEV 环境', namespace: 'v2test-dev', configCount: 22 },
-            { namespaceShowName: 'PROD 线上环境', namespace: 'prod-main', configCount: 89 },
-            { namespaceShowName: '测试集群 1', namespace: 'test-1', configCount: 5 },
-            { namespaceShowName: '测试集群 2', namespace: 'test-2', configCount: 3 },
-            { namespaceShowName: '预发布环境', namespace: 'staging-env', configCount: 17 },
-            { namespaceShowName: '演示环境', namespace: 'demo-app', configCount: 8 },
-            { namespaceShowName: '支付中心', namespace: 'payment-center', configCount: 14 },
-            { namespaceShowName: '用户中心', namespace: 'user-center', configCount: 20 }
-        ];
-        renderNamespaces(mockList);
-    }
-
     function onSelectNamespace(nsId, nsName) {
-        console.log('已选择命名空间:', nsId, nsName);
+        console.log('当前选中命名空间:', nsId, nsName);
     }
 
     function logout() {
         localStorage.removeItem('is_authenticated');
+        localStorage.removeItem('nacos_access_token');
         window.location.href = 'index.html';
     }
 </script>

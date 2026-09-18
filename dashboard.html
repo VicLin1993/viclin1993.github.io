@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>秘密调整基地 // Nacos 控制台</title>
+    <title>秘密調整基地 // Nacos 控制台</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: #0d1117; color: #00f0ff; height: 100vh; display: flex; overflow: hidden; }
 
-        /* 左侧侧边栏 */
+        /* 左側側邊欄 */
         aside { width: 220px; background: rgba(13, 22, 33, 0.95); border-right: 1px solid rgba(0, 240, 255, 0.2); display: flex; flex-direction: column; justify-content: space-between; padding: 20px 0; flex-shrink: 0; }
         .sidebar-brand { padding: 0 20px 20px; border-bottom: 1px solid rgba(0, 240, 255, 0.15); margin-bottom: 15px; }
         .sidebar-brand h2 { font-size: 16px; color: #00ff88; }
@@ -23,32 +23,52 @@
         .btn-logout { width: 100%; background: transparent; border: 1px solid #ff5555; color: #ff5555; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 13px; transition: all 0.2s; }
         .btn-logout:hover { background: #ff5555; color: #ffffff; }
 
-        /* 右侧主视窗 */
+        /* 右側主視窗 */
         main { flex: 1; display: flex; flex-direction: column; background-color: #0d1117; overflow: hidden; position: relative; }
 
         .view-section { display: none; height: 100%; flex-direction: column; padding: 24px; overflow-y: auto; }
         .view-section.active { display: flex; }
 
         .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(0, 240, 255, 0.15); padding-bottom: 12px; }
-        .section-title { font-size: 18px; color: #00ff88; }
+        .section-title { font-size: 18px; color: #00ff88; display: flex; align-items: center; gap: 10px; }
 
         .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 12px; }
         .search-box { background: rgba(0,0,0,0.4); border: 1px solid rgba(0, 240, 255, 0.4); color: #00ff88; padding: 8px 12px; border-radius: 4px; outline: none; width: 260px; font-size: 13px; }
         .search-box:focus { border-color: #00ff88; }
 
-        /* Namespace 卡片网格（10 列） */
+        /* Namespace 卡片網格（10 列） */
         .namespace-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 10px; margin-bottom: 20px; }
         @media (max-width: 1700px) { .namespace-grid { grid-template-columns: repeat(5, 1fr); } }
         @media (max-width: 1000px) { .namespace-grid { grid-template-columns: repeat(2, 1fr); } }
 
         .ns-card { background: rgba(13, 22, 33, 0.7); border: 1px solid rgba(0, 240, 255, 0.3); border-radius: 4px; padding: 10px 8px; cursor: pointer; text-align: center; word-break: break-all; transition: all 0.2s; }
-        .ns-card:hover, .ns-card.active { border-color: #00ff88; background: rgba(0, 255, 136, 0.15); box-shadow: 0 0 12px rgba(0, 255, 136, 0.5); }
+        .ns-card:hover { border-color: #00ff88; background: rgba(0, 255, 136, 0.15); box-shadow: 0 0 12px rgba(0, 255, 136, 0.5); }
         .ns-name { font-size: 12px; font-weight: bold; color: #00ff88; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .ns-id { font-size: 10px; color: #8b949e; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .ns-desc { font-size: 10px; color: #58a6ff; margin-top: 4px; }
         .ns-badge { font-size: 9px; color: #00f0ff; margin-top: 2px; }
 
-        /* 底部分页栏 */
+        /* Nacos 原生數據表格 */
+        .nacos-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; text-align: left; }
+        .nacos-table th { background: rgba(0, 240, 255, 0.1); color: #00ff88; border-bottom: 1px solid rgba(0, 240, 255, 0.3); padding: 12px; font-weight: 600; }
+        .nacos-table td { border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding: 12px; color: #c9d1d9; }
+        .nacos-table tr:hover { background: rgba(0, 240, 255, 0.03); }
+        
+        .btn-edit { background: transparent; border: 1px solid #00f0ff; color: #00f0ff; padding: 4px 10px; font-size: 12px; border-radius: 3px; cursor: pointer; transition: all 0.2s; }
+        .btn-edit:hover { background: #00f0ff; color: #0d1117; }
+        .btn-back { background: transparent; border: 1px solid #58a6ff; color: #58a6ff; padding: 4px 12px; font-size: 12px; border-radius: 3px; cursor: pointer; }
+        .btn-back:hover { background: rgba(88, 166, 255, 0.2); }
+
+        /* 彈出編輯視窗Modal */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.75); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-overlay.active { display: flex; }
+        .modal-content { background: #0d1117; border: 1px solid #00f0ff; border-radius: 6px; width: 80%; max-width: 900px; height: 80vh; display: flex; flex-direction: column; padding: 24px; box-shadow: 0 0 25px rgba(0, 240, 255, 0.3); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(0, 240, 255, 0.2); padding-bottom: 12px; }
+        .modal-title { font-size: 16px; color: #00ff88; }
+        .code-textarea { flex: 1; background: #011627; border: 1px solid rgba(0, 240, 255, 0.3); color: #d6deeb; font-family: monospace; font-size: 13px; padding: 14px; border-radius: 4px; outline: none; resize: none; margin-bottom: 16px; line-height: 1.5; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 12px; }
+
+        /* 底部分頁欄 */
         .pagination-container { margin-top: auto; padding-top: 16px; border-top: 1px solid rgba(0, 240, 255, 0.15); display: flex; justify-content: space-between; align-items: center; }
         .pagination-info { font-size: 13px; color: #58a6ff; }
         .pagination-controls { display: flex; align-items: center; gap: 6px; }
@@ -65,19 +85,19 @@
 </head>
 <body>
 
-    <!-- 左侧栏 -->
+    <!-- 左側欄 -->
     <aside>
         <div>
             <div class="sidebar-brand">
-                <h2>秘密调整基地</h2>
-                <p>Nacos 独立控制台</p>
+                <h2>秘密調整基地</h2>
+                <p>Nacos 獨立控制台</p>
             </div>
             <ul class="nav-list">
                 <li class="nav-item active" onclick="switchTab('overview')">
-                    <span>1. 概览</span>
+                    <span>1. 概覽</span>
                 </li>
                 <li class="nav-item" onclick="switchTab('search')">
-                    <span>2. 查询</span>
+                    <span>2. 查詢</span>
                 </li>
                 <li class="nav-item" onclick="switchTab('edit')">
                     <span>3. 修改</span>
@@ -85,64 +105,111 @@
             </ul>
         </div>
         <div class="sidebar-footer">
-            <button class="btn-logout" onclick="logout()">退出登录</button>
+            <button class="btn-logout" onclick="logout()">退出登入</button>
         </div>
     </aside>
 
-    <!-- 右侧内容视图 -->
+    <!-- 右側內容視窗 -->
     <main>
-        <!-- 视图 1：概览 -->
+        <!-- 視窗 1：概覽（命名空間列表） -->
         <section id="view-overview" class="view-section active">
             <div class="section-header">
-                <div class="section-title">> 命名空间概览</div>
-                <button class="page-btn" onclick="fetchNamespaces()">刷新数据</button>
+                <div class="section-title">> 命名空間概覽</div>
+                <button class="page-btn" onclick="fetchNamespaces()">刷新資料</button>
             </div>
 
             <div class="toolbar">
-                <div style="font-size:13px; color:#58a6ff;">全量 Namespace 列表（共 <span id="nsTotalCount">0</span> 个）</div>
-                <input type="text" id="searchInput" class="search-box" placeholder="搜索命名空间..." oninput="onSearchInput()">
+                <div style="font-size:13px; color:#58a6ff;">全量 Namespace 列表（共 <span id="nsTotalCount">0</span> 個）</div>
+                <input type="text" id="searchInput" class="search-box" placeholder="搜尋命名空間..." oninput="onSearchInput()">
             </div>
 
             <div id="statusMsg" class="status-msg"></div>
             <div id="namespaceContainer" class="namespace-grid"></div>
 
-            <!-- 右下角分页功能 -->
+            <!-- 右下角分頁 -->
             <div class="pagination-container">
                 <div class="pagination-info">
-                    每页 100 条 | 页数：<span id="pageCurrentText">1</span> / <span id="pageTotalText">1</span>
+                    每頁 100 條 | 頁數：<span id="pageCurrentText">1</span> / <span id="pageTotalText">1</span>
                 </div>
                 <div class="pagination-controls" id="paginationControls"></div>
             </div>
         </section>
 
-        <!-- 视图 2：查询 -->
+        <!-- 視窗 1-Detail：指定 Namespace 的配置詳情列表 -->
+        <section id="view-configs" class="view-section">
+            <div class="section-header">
+                <div class="section-title">
+                    <button class="btn-back" onclick="switchTab('overview')">← 返回概覽</button>
+                    <span>命名空間配置：<span id="currentNsTitle" style="color: #00f0ff;"></span></span>
+                </div>
+                <button class="page-btn" onclick="loadConfigsOfNamespace(activeNamespaceId)">刷新列表</button>
+            </div>
+
+            <div id="configStatusMsg" class="status-msg"></div>
+
+            <table class="nacos-table">
+                <thead>
+                    <tr>
+                        <th>Data Id</th>
+                        <th>Group</th>
+                        <th>歸屬應用</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="configTableBody">
+                    <!-- 動態填入 Nacos 配置資料 -->
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 視窗 2：查詢 -->
         <section id="view-search" class="view-section">
             <div class="section-header">
-                <div class="section-title">> 配置与服务查询</div>
+                <div class="section-title">> 配置與服務查詢</div>
             </div>
             <div class="placeholder-box">
-                [ 2. 查询功能开发中... ]
+                [ 2. 查詢功能開發中... ]
             </div>
         </section>
 
-        <!-- 视图 3：修改 -->
+        <!-- 視窗 3：修改 -->
         <section id="view-edit" class="view-section">
             <div class="section-header">
-                <div class="section-title">> 配置修改与调整</div>
+                <div class="section-title">> 配置修改與調整</div>
             </div>
             <div class="placeholder-box">
-                [ 3. 修改功能开发中... ]
+                [ 3. 修改功能開發中... ]
             </div>
         </section>
     </main>
+
+    <!-- 編輯配置 Modal 彈窗 -->
+    <div id="editModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">編輯配置內容 // <span id="modalDataId" style="color: #00f0ff;"></span></div>
+                <button class="btn-back" onclick="closeEditModal()">關閉</button>
+            </div>
+            <textarea id="configContentArea" class="code-textarea" spellcheck="false" placeholder="正在載入配置內容..."></textarea>
+            <div class="modal-footer">
+                <button class="btn-back" onclick="closeEditModal()">取消</button>
+                <button class="page-btn" style="background: #00ff88; color: #0d1117; font-weight: bold;" onclick="saveConfigToServer()">儲存並發布</button>
+            </div>
+        </div>
+    </div>
 
 <script>
     const SERVER_URL = 'https://nacos.wayturnlive.com';
     const PAGE_SIZE = 100;
 
-    let rawNamespaceList = [];      // 从服务器拿到获取的全量列表
-    let filteredNamespaceList = []; // 搜索过滤后的列表
-    let currentPage = 1;            // 当前页码
+    let rawNamespaceList = [];      
+    let filteredNamespaceList = []; 
+    let currentPage = 1;            
+    let activeNamespaceId = '';     
+
+    // 當前正在編輯的標的資訊
+    let currentEditDataId = '';
+    let currentEditGroup = '';
 
     window.addEventListener('DOMContentLoaded', () => {
         if (localStorage.getItem('is_authenticated') !== 'true') {
@@ -152,7 +219,6 @@
         fetchNamespaces();
     });
 
-    // 切换左侧 Tab
     function switchTab(tabKey) {
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
@@ -173,38 +239,28 @@
         const container = document.getElementById('namespaceContainer');
         const statusMsg = document.getElementById('statusMsg');
         
-        container.innerHTML = '<div style="color: #00f0ff; font-size: 13px; grid-column: span 10;">正在读取 Nacos 命名空间...</div>';
+        container.innerHTML = '<div style="color: #00f0ff; font-size: 13px; grid-column: span 10;">正在讀取 Nacos 命名空間...</div>';
         statusMsg.style.display = 'none';
 
         const token = localStorage.getItem('nacos_access_token') || '';
-        if (!token) {
-            showError('[!] 未检测到有效 Token，请重新登录！');
-            setTimeout(logout, 2000);
-            return;
-        }
 
         try {
             const response = await fetch(`${SERVER_URL}/nacos/v1/console/namespaces?accessToken=${token}`);
             const resData = await response.json();
 
-            // Token 过期
             if (resData.code === 403 || resData.code === 401 || (resData.message && resData.message.toLowerCase().includes('token'))) {
                 container.innerHTML = '';
-                showError(`[!] 登录凭证已过期，即将自动跳转重新登录...`);
+                showError(`[!] 憑證已過期，即將重新登入...`);
                 setTimeout(logout, 2000);
                 return;
             }
 
-            // 解析列表
             if (Array.isArray(resData)) {
                 rawNamespaceList = resData;
             } else if (resData && Array.isArray(resData.data)) {
                 rawNamespaceList = resData.data;
-            } else if (resData && resData.data && Array.isArray(resData.data.pageItems)) {
-                rawNamespaceList = resData.data.pageItems;
             } else {
                 rawNamespaceList = [];
-                showError(`[!] 接收到未知数据格式`);
             }
 
             filteredNamespaceList = [...rawNamespaceList];
@@ -215,11 +271,10 @@
 
         } catch (err) {
             container.innerHTML = '';
-            showError(`[!] 读取失败: ${err.message}`);
+            showError(`[!] 讀取失敗: ${err.message}`);
         }
     }
 
-    // 渲染当前页卡片与分页栏
     function renderCurrentPage() {
         const container = document.getElementById('namespaceContainer');
         container.innerHTML = '';
@@ -234,19 +289,17 @@
         const pageItems = filteredNamespaceList.slice(startIdx, startIdx + PAGE_SIZE);
 
         if (pageItems.length === 0) {
-            container.innerHTML = '<div style="color: #8b949e; grid-column: span 10; text-align: center; padding: 40px;">无符合条件的命名空间</div>';
+            container.innerHTML = '<div style="color: #8b949e; grid-column: span 10; text-align: center; padding: 40px;">無符合條件的命名空間</div>';
         } else {
-            pageItems.forEach((item, index) => {
+            pageItems.forEach((item) => {
                 const card = document.createElement('div');
                 card.className = 'ns-card';
-                if (index === 0 && currentPage === 1) card.classList.add('active');
 
                 const nsName = item.namespaceShowName || (item.namespace === "" ? "public" : item.namespace);
-                const nsId = item.namespace === "" ? "public (默认)" : item.namespace;
+                const nsId = item.namespace === "" ? "public (默認)" : item.namespace;
                 const desc = item.namespaceDesc || '';
-                const configCount = item.configCount !== undefined ? `${item.configCount} 项配置` : '';
+                const configCount = item.configCount !== undefined ? `${item.configCount} 項配置` : '';
 
-                card.title = `${nsName}\nID: ${nsId}\n描述: ${desc}`;
                 card.innerHTML = `
                     <div class="ns-name">${nsName}</div>
                     <div class="ns-id">${nsId}</div>
@@ -254,30 +307,134 @@
                     ${configCount ? `<div class="ns-badge">${configCount}</div>` : ''}
                 `;
 
+                // 點擊卡片跳轉進入詳細配置列表
                 card.onclick = () => {
-                    document.querySelectorAll('.ns-card').forEach(c => c.classList.remove('active'));
-                    card.classList.add('active');
+                    loadConfigsOfNamespace(item.namespace, nsName);
                 };
 
                 container.appendChild(card);
             });
         }
 
-        // 更新分页数据文本
         document.getElementById('pageCurrentText').innerText = currentPage;
         document.getElementById('pageTotalText').innerText = totalPages;
 
         renderPaginationControls(totalPages);
     }
 
-    // 渲染分页控件（包含 << 1 2 3 4 5 ... 最末页 >>）
+    // 載入特定 Namespace 下的配置列表
+    async function loadConfigsOfNamespace(namespaceId, namespaceName) {
+        activeNamespaceId = namespaceId;
+        document.getElementById('currentNsTitle').innerText = namespaceName || namespaceId || 'public';
+        
+        // 隱藏概覽，顯示配置列表
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+        document.getElementById('view-configs').classList.add('active');
+
+        const tableBody = document.getElementById('configTableBody');
+        const statusMsg = document.getElementById('configStatusMsg');
+        tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#00f0ff;">正在拉取 Nacos 配置數據...</td></tr>';
+        statusMsg.style.display = 'none';
+
+        const token = localStorage.getItem('nacos_access_token') || '';
+
+        try {
+            const url = `${SERVER_URL}/nacos/v1/cs/configs?dataId=&group=&appName=&config_tags=&pageNo=1&pageSize=200&tenant=${namespaceId}&search=accurate&accessToken=${token}`;
+            const response = await fetch(url);
+            const resData = await response.json();
+
+            const configList = resData.pageItems || [];
+            tableBody.innerHTML = '';
+
+            if (configList.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#8b949e;">該命名空間下暫無配置項目</td></tr>';
+                return;
+            }
+
+            configList.forEach(config => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="color:#00ff88; font-weight:bold;">${config.dataId}</td>
+                    <td>${config.group}</td>
+                    <td style="color:#8b949e;">${config.appName || '-'}</td>
+                    <td>
+                        <button class="btn-edit" onclick="openEditModal('${config.dataId}', '${config.group}')">編輯</button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+
+        } catch (err) {
+            tableBody.innerHTML = '';
+            statusMsg.innerText = `[!] 配置載入失敗: ${err.message}`;
+            statusMsg.style.display = 'block';
+        }
+    }
+
+    // 開啟編輯視窗並拉取原始配置內文
+    async function openEditModal(dataId, group) {
+        currentEditDataId = dataId;
+        currentEditGroup = group;
+
+        document.getElementById('modalDataId').innerText = `${dataId} (${group})`;
+        const textarea = document.getElementById('configContentArea');
+        textarea.value = '正在讀取伺服器配置數據...';
+        document.getElementById('editModal').classList.add('active');
+
+        const token = localStorage.getItem('nacos_access_token') || '';
+
+        try {
+            const url = `${SERVER_URL}/nacos/v1/cs/configs?dataId=${encodeURIComponent(dataId)}&group=${encodeURIComponent(group)}&tenant=${encodeURIComponent(activeNamespaceId)}&accessToken=${token}`;
+            const response = await fetch(url);
+            const contentText = await response.text();
+            
+            textarea.value = contentText;
+        } catch (err) {
+            textarea.value = `[!] 獲取內容失敗: ${err.message}`;
+        }
+    }
+
+    // 將編輯後的內容實時發布同步回 Nacos
+    async function saveConfigToServer() {
+        const content = document.getElementById('configContentArea').value;
+        const token = localStorage.getItem('nacos_access_token') || '';
+
+        try {
+            const response = await fetch(`${SERVER_URL}/nacos/v1/cs/configs`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    dataId: currentEditDataId,
+                    group: currentEditGroup,
+                    tenant: activeNamespaceId,
+                    content: content,
+                    accessToken: token
+                })
+            });
+
+            const resultText = await response.text();
+
+            if (response.ok && (resultText === 'true' || resultText.includes('true'))) {
+                alert('✓ 配置已成功同步更新至 Nacos 伺服器！');
+                closeEditModal();
+            } else {
+                alert(`[!] 儲存失敗: ${resultText}`);
+            }
+        } catch (err) {
+            alert(`[!] 更新異常: ${err.message}`);
+        }
+    }
+
+    function closeEditModal() {
+        document.getElementById('editModal').classList.remove('active');
+    }
+
     function renderPaginationControls(totalPages) {
         const controls = document.getElementById('paginationControls');
         controls.innerHTML = '';
 
         if (totalPages <= 1) return;
 
-        // 1. 首页 <<
         const firstBtn = document.createElement('button');
         firstBtn.className = 'page-btn';
         firstBtn.innerText = '<<';
@@ -285,38 +442,12 @@
         firstBtn.onclick = () => goToPage(1);
         controls.appendChild(firstBtn);
 
-        // 2. 上一页 <
-        const prevBtn = document.createElement('button');
-        prevBtn.className = 'page-btn';
-        prevBtn.innerText = '<';
-        prevBtn.disabled = currentPage === 1;
-        prevBtn.onclick = () => goToPage(currentPage - 1);
-        controls.appendChild(prevBtn);
-
-        // 计算展示的页码范围 (最多展示 5 个具体数字页码)
         let startPage = Math.max(1, currentPage - 2);
         let endPage = Math.min(totalPages, startPage + 4);
         if (endPage - startPage < 4) {
             startPage = Math.max(1, endPage - 4);
         }
 
-        // 开头省略号
-        if (startPage > 1) {
-            const btn1 = document.createElement('button');
-            btn1.className = 'page-btn';
-            btn1.innerText = '1';
-            btn1.onclick = () => goToPage(1);
-            controls.appendChild(btn1);
-
-            if (startPage > 2) {
-                const ellipsis = document.createElement('span');
-                ellipsis.className = 'page-ellipsis';
-                ellipsis.innerText = '...';
-                controls.appendChild(ellipsis);
-            }
-        }
-
-        // 页码按钮
         for (let i = startPage; i <= endPage; i++) {
             const pageBtn = document.createElement('button');
             pageBtn.className = `page-btn ${i === currentPage ? 'active' : ''}`;
@@ -325,52 +456,12 @@
             controls.appendChild(pageBtn);
         }
 
-        // 结尾省略号与最末页
-        if (endPage < totalPages) {
-            if (endPage < totalPages - 1) {
-                const ellipsis = document.createElement('span');
-                ellipsis.className = 'page-ellipsis';
-                ellipsis.innerText = '...';
-                controls.appendChild(ellipsis);
-            }
-
-            const lastPageBtn = document.createElement('button');
-            lastPageBtn.className = 'page-btn';
-            lastPageBtn.innerText = totalPages;
-            lastPageBtn.onclick = () => goToPage(totalPages);
-            controls.appendChild(lastPageBtn);
-        }
-
-        // 3. 下一页 >
-        const nextBtn = document.createElement('button');
-        nextBtn.className = 'page-btn';
-        nextBtn.innerText = '>';
-        nextBtn.disabled = currentPage === totalPages;
-        nextBtn.onclick = () => goToPage(currentPage + 1);
-        controls.appendChild(nextBtn);
-
-        // 4. 最末页 >>
         const lastBtn = document.createElement('button');
         lastBtn.className = 'page-btn';
         lastBtn.innerText = '>>';
         lastBtn.disabled = currentPage === totalPages;
         lastBtn.onclick = () => goToPage(totalPages);
         controls.appendChild(lastBtn);
-
-        // 跳页输入框
-        const jumpInput = document.createElement('input');
-        jumpInput.type = 'number';
-        jumpInput.className = 'page-jump-input';
-        jumpInput.placeholder = '页';
-        jumpInput.onkeydown = (e) => {
-            if (e.key === 'Enter') {
-                const target = parseInt(jumpInput.value);
-                if (target >= 1 && target <= totalPages) {
-                    goToPage(target);
-                }
-            }
-        };
-        controls.appendChild(jumpInput);
     }
 
     function goToPage(page) {

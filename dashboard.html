@@ -218,6 +218,123 @@ window.populateNamespaceSelect = function(selectElem) {
 };
 </script>
 
+
+<script>
+(function() {
+    // 1. 全局存储 Namespace 数据
+    window.globalNamespaces = window.globalNamespaces || [
+        { id: '', name: '请选择' },
+        { id: 'public', name: 'public (保留空间)' },
+        { id: 'UAT-SEA4-3Q', name: 'UAT-SEA4-3Q' },
+        { id: 'dev', name: 'DEV 开发环境' },
+        { id: 'sit', name: 'SIT 测试环境' },
+        { id: 'uat', name: 'UAT 预发布环境' },
+        { id: 'prod', name: 'PROD 生产环境' }
+    ];
+
+    // 2. 渲染/刷新“2. 查询 (版本对比)”页面的 Namespace 下拉选单
+    window.refreshQueryNamespaceSelect = function(selectedNs) {
+        // 查找查询页面的 namespace 元素（匹配常见 ID 或 name）
+        const selectElems = document.querySelectorAll('#query-namespace, #search-namespace, [name="queryNamespace"], [name="searchNamespace"], .query-ns-select');
+        
+        selectElems.forEach(elem => {
+            if (!elem) return;
+
+            // 如果元素还是 text input，替换为 select
+            let select = elem;
+            if (elem.tagName === 'INPUT') {
+                select = document.createElement('select');
+                select.id = elem.id;
+                select.className = elem.className;
+                select.name = elem.name;
+                elem.parentNode.replaceChild(select, elem);
+            }
+
+            select.innerHTML = '';
+            
+            // 填充下拉选项
+            window.globalNamespaces.forEach(ns => {
+                const opt = document.createElement('option');
+                opt.value = ns.id;
+                opt.innerText = ns.name;
+                if (selectedNs && (ns.id === selectedNs || ns.name === selectedNs)) {
+                    opt.selected = true;
+                }
+                select.appendChild(opt);
+            });
+
+            if (window.appendDebugLog) {
+                window.appendDebugLog(`[NS下拉更新] 已加载 ${window.globalNamespaces.length} 个 Namespace 选项，当前选中: "${select.value}"`, 'info');
+            }
+        });
+    };
+
+    // 3. 重载 fetchHistoryAndCompare 函数 (点击“对比”时触发)
+    window.fetchHistoryAndCompare = function(dataId, group, namespaceId) {
+        if (window.appendDebugLog) {
+            window.appendDebugLog(`[对比按键点击] DataID=${dataId}, Group=${group}, NS=${namespaceId}`, 'info');
+        }
+
+        // 第一步：切换到“2. 查询 (版本对比)”Tab 标签页
+        let queryTabBtn = document.querySelector('[data-tab="query"], [data-tab="compare"], #tab-query, #tab-compare, .tab-btn-query');
+        if (!queryTabBtn) {
+            // 尝试按文本查找“2. 查询”或“版本对比”选项卡
+            const allTabs = document.querySelectorAll('.tab, .nav-item, button, a');
+            allTabs.forEach(t => {
+                if (t.innerText.includes('查询') || t.innerText.includes('对比')) {
+                    queryTabBtn = t;
+                }
+            });
+        }
+
+        if (queryTabBtn) {
+            queryTabBtn.click();
+            if (window.appendDebugLog) window.appendDebugLog('[页面切换] 已点击切换到 "2. 查询 (版本对比)" 标签页', 'info');
+        } else {
+            if (window.appendDebugLog) window.appendDebugLog('[切换失败] 未寻找到 "2. 查询" 页面的 Tab 按钮', 'error');
+        }
+
+        // 第二步：更新查询页面的 Namespace 下拉框并选中对应 NS
+        window.refreshQueryNamespaceSelect(namespaceId);
+
+        // 第三步：将 Group 和 Data ID 填入“2. 查询”页面的输入框中
+        setTimeout(() => {
+            const groupInput = document.querySelector('#query-group, #search-group, [name="queryGroup"], [name="group"]');
+            const dataIdInput = document.querySelector('#query-dataid, #search-dataid, [name="queryDataId"], [name="dataId"]');
+
+            if (groupInput) groupInput.value = group || '';
+            if (dataIdInput) dataIdInput.value = dataId || '';
+
+            if (window.appendDebugLog) {
+                window.appendDebugLog(`[参数自动填入] 查询页 Group=${groupInput ? groupInput.value : '未找到框'}, DataID=${dataIdInput ? dataIdInput.value : '未找到框'}`, 'info');
+            }
+
+            // 第四步：自动触发“2. 查询”页面的版本对比查询按钮
+            const queryBtn = document.querySelector('#btn-query-history, #btn-search-compare, .btn-query, #query-submit');
+            if (queryBtn) {
+                queryBtn.click();
+                if (window.appendDebugLog) window.appendDebugLog('[自动查询] 已自动触发历史版本查询', 'info');
+            } else if (typeof window.doQueryHistory === 'function') {
+                window.doQueryHistory(dataId, group, namespaceId);
+            }
+        }, 300);
+    };
+
+    // 4. 初始化页面监听
+    document.addEventListener('DOMContentLoaded', function() {
+        window.refreshQueryNamespaceSelect();
+
+        // 监听所有 tab 点击，当用户手动点击“2. 查询 (版本对比)”时，也确保 NS 下拉菜单有内容
+        document.body.addEventListener('click', function(e) {
+            const target = e.target;
+            if (target && (target.innerText.includes('查询') || target.innerText.includes('对比'))) {
+                setTimeout(() => window.refreshQueryNamespaceSelect(), 100);
+            }
+        });
+    });
+})();
+</script>
+
 </head>
 <body>
 

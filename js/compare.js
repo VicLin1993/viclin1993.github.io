@@ -249,7 +249,7 @@ async function loadPanel(side, mode) {
 
     // 历史版本：拉完整列表填充下拉框
     try {
-        const url = `${cleanUrl}/nacos/v1/cs/history?search=accurate&dataId=${encodeURIComponent(dataId)}&group=${encodeURIComponent(group)}&tenant=${encodeURIComponent(tenant)}&pageNo=1&pageSize=20&accessToken=${encodeURIComponent(token)}`;
+        const url = `${cleanUrl}/nacos/v3/console/cs/history/list?dataId=${encodeURIComponent(dataId)}&groupName=${encodeURIComponent(group)}&namespaceId=${encodeURIComponent(tenant)}&pageNo=1&pageSize=20&accessToken=${encodeURIComponent(token)}`;
         const resp = await fetch(url);
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
         const data = await resp.json();
@@ -308,15 +308,15 @@ async function rollbackLeftVersion() {
     const tenant = (nsId === 'public' || !nsId) ? '' : nsId;
 
     try {
-        // Nacos 回滚接口：POST /nacos/v1/cs/history/configs
+        // Nacos 回滚接口：POST /nacos/v3/console/cs/history/configs
         const body = new URLSearchParams({
             id: item.id,
             dataId: dataId,
             group: group,
-            tenant: tenant,
+            namespaceId: tenant,
             accessToken: token
         });
-        const resp = await fetch(`${cleanUrl}/nacos/v1/cs/history/configs`, {
+        const resp = await fetch(`${cleanUrl}/nacos/v3/console/cs/history/configs`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: body

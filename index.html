@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>终端访问 // 专属控制台登录</title>
+    <title>终端访问 // 秘密调整基地</title>
     <style>
         * {
             box-sizing: border-box;
@@ -142,8 +142,8 @@
 
 <div class="login-box">
     <div class="title-area">
-        <h2>NACOS 专属管理终端</h2>
-        <p>请输入专属管理账号与密钥</p>
+        <h2>秘密调整基地</h2>
+        <p>请输入专属管理账号与安全密钥</p>
     </div>
 
     <form id="loginForm">
@@ -175,7 +175,7 @@
 
         if (inputUser === ADMIN_USER && inputPass === ADMIN_PASS) {
             localStorage.setItem('is_authenticated', 'true');
-            alert('验证成功，正在进入专属控制台...');
+            // 直接跳转页面，无弹窗
             window.location.href = 'dashboard.html';
         } else {
             errorMsg.innerText = '[!] 验证失败：账号或安全密钥错误';
